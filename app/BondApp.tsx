@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import InteractiveMap from "./InteractiveMap";
 import {
   AlertTriangle,
   ArrowRight,
@@ -72,6 +73,7 @@ type Site = {
   capacity: string;
   score: number;
   decision: "GO" | "CONDITIONAL GO" | "NO-GO";
+  coordinates: [number, number];
   dimensions: Record<string, number>;
 };
 
@@ -84,6 +86,7 @@ const sites: Site[] = [
     capacity: "120 MWp",
     score: 74,
     decision: "CONDITIONAL GO",
+    coordinates: [-73.89, 9.98],
     dimensions: {
       Técnico: 88,
       Ambiental: 71,
@@ -102,6 +105,7 @@ const sites: Site[] = [
     capacity: "180 MW",
     score: 68,
     decision: "CONDITIONAL GO",
+    coordinates: [-72.45, 11.35],
     dimensions: {
       Técnico: 92,
       Ambiental: 64,
@@ -120,6 +124,7 @@ const sites: Site[] = [
     capacity: "95 MWp",
     score: 81,
     decision: "GO",
+    coordinates: [-74.1, 10.6],
     dimensions: {
       Técnico: 84,
       Ambiental: 83,
@@ -238,88 +243,16 @@ export default function BondApp() {
       </div>
 
       <div className="evaluator-layout">
-        <section className="map-workspace" aria-label="Mapa territorial de evaluación">
-          <div className="map-toolbar">
-            <div className="map-search">
-              <Search size={16} />
-              <input aria-label="Buscar municipio o coordenadas" placeholder="Municipio, DIVIPOLA o coordenadas" />
-              <kbd>⌘ K</kbd>
-            </div>
-            <div className="tool-cluster">
-              <IconButton label="Seleccionar elemento"><MousePointer2 size={17} /></IconButton>
-              <IconButton label="Dibujar área"><MapPin size={17} /></IconButton>
-              <IconButton label="Medir distancia"><Ruler size={17} /></IconButton>
-              <IconButton label="Ajustar mapa"><Maximize2 size={17} /></IconButton>
-            </div>
-          </div>
-
-          <div className="map-canvas">
-            <div className="map-label map-label-1">Bosconia</div>
-            <div className="map-label map-label-2">El Copey</div>
-            <div className="map-label map-label-3">Valledupar</div>
-            <div className="terrain terrain-a" />
-            <div className="terrain terrain-b" />
-            <div className="protected-zone" title="Área de sensibilidad ambiental" />
-            <div className="social-zone" title="Alerta social" />
-            <div className="aoi-polygon" title="Área de interés activa">
-              <span>AOI-01 · 326 ha</span>
-            </div>
-            <div className="grid-line grid-line-a" />
-            <div className="grid-line grid-line-b" />
-            <div className="river-line" />
-            {sites.map((site, index) => (
-              <button
-                key={site.id}
-                type="button"
-                className={`site-marker marker-${index + 1} ${selectedSiteId === site.id ? "selected" : ""}`}
-                aria-label={`Seleccionar ${site.name}`}
-                onClick={() => setSelectedSiteId(site.id)}
-              >
-                <span>{index + 1}</span>
-                <div className="marker-tooltip">
-                  <strong>{site.name}</strong>
-                  <small>{site.score}/100 · {site.decision}</small>
-                </div>
-              </button>
-            ))}
-
-            <div className="map-attribution">Base cartográfica ilustrativa · no usar para ingeniería</div>
-            <div className="map-legend">
-              <span><i className="legend-opportunity" /> Oportunidad</span>
-              <span><i className="legend-restriction" /> Restricción</span>
-              <span><i className="legend-grid" /> Red</span>
-            </div>
-
-            <aside className={`layer-panel ${layersOpen ? "open" : "closed"}`}>
-              <div className="layer-panel-header">
-                <button type="button" className="layer-title" onClick={() => setLayersOpen((open) => !open)}>
-                  <Layers3 size={17} /> Capas <span>{layers.filter((layer) => layer.active).length}</span>
-                </button>
-                <IconButton label={layersOpen ? "Ocultar capas" : "Mostrar capas"} onClick={() => setLayersOpen((open) => !open)}>
-                  {layersOpen ? <EyeOff size={16} /> : <Eye size={16} />}
-                </IconButton>
-              </div>
-              {layersOpen && (
-                <div className="layer-list">
-                  {layers.map((layer) => (
-                    <label key={layer.id} className="layer-row">
-                      <input type="checkbox" checked={layer.active} onChange={() => toggleLayer(layer.id)} />
-                      <span className="switch" />
-                      <i style={{ background: layer.color }} />
-                      <span>
-                        <strong>{layer.label}</strong>
-                        <small>{layer.group}</small>
-                      </span>
-                    </label>
-                  ))}
-                  <button className="text-button full" type="button" onClick={() => setActiveView("Capas y variables")}>
-                    Administrar capas <ArrowRight size={14} />
-                  </button>
-                </div>
-              )}
-            </aside>
-          </div>
-        </section>
+        <InteractiveMap
+          sites={sites}
+          selectedSiteId={selectedSiteId}
+          onSelectSite={setSelectedSiteId}
+          layers={layers}
+          onToggleLayer={toggleLayer}
+          layersOpen={layersOpen}
+          onToggleLayersPanel={() => setLayersOpen((open) => !open)}
+          onOpenLayerAdmin={() => setActiveView("Capas y variables")}
+        />
 
         <aside className="evaluation-panel">
           <div className="site-selector-row">
