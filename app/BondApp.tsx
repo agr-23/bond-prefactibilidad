@@ -138,6 +138,7 @@ const sites: Site[] = [
 ];
 
 const layerSeed = [
+  { id: "municipal", label: "Indicadores municipales BOND", group: "Datos BOND", color: "#1f6b50", active: true },
   { id: "solar", label: "Recurso solar", group: "Técnica", color: "#e6a23c", active: true },
   { id: "grid", label: "Infraestructura eléctrica", group: "Conexión", color: "#2979ff", active: true },
   { id: "runap", label: "Áreas protegidas", group: "Ambiental", color: "#348c61", active: true },
@@ -227,7 +228,7 @@ export default function BondApp() {
         <div>
           <div className="eyebrow-row">
             <span>Evaluación activa</span>
-            <span className="demo-badge">DATOS DEMO</span>
+            <span className="demo-badge">DATOS MUNICIPALES</span>
           </div>
           <h1>Explorador territorial</h1>
         </div>
@@ -492,7 +493,7 @@ export default function BondApp() {
         {[
           ["Comparativo Portafolio Caribe", "PDF ejecutivo", "3 sitios · Escenario balanceado", "Hoy, 10:42"],
           ["Prefactibilidad Sitio Aurora", "PDF técnico", "22 variables · 3 alertas", "Ayer, 16:18"],
-          ["Resultados municipales – Cesar", "CSV", "Muestra normalizada", "08 jul, 09:10"],
+          ["Resultados municipales – Colombia", "CSV", "913 municipios · indicadores consolidados", "Actualizado"],
           ["Áreas analizadas – Corredor Cesar", "GeoJSON", "6 polígonos", "07 jul, 14:32"],
         ].map((row, index) => <div className="report-row" key={row[0]}><div className={`file-icon file-${index}`}><FileText size={18}/></div><div><strong>{row[0]}</strong><span>{row[1]} · {row[2]}</span></div><small>{row[3]}</small><span className="report-status"><CheckCircle2 size={14}/> Listo</span><IconButton label={`Descargar ${row[0]}`}><Download size={17}/></IconButton></div>)}
       </section>
@@ -509,7 +510,7 @@ export default function BondApp() {
         <div className="table-head"><span>Capa</span><span>Categoría</span><span>Tipo</span><span>Fuente / año</span><span>Versión</span><span>Estado</span><span>Actualización</span><span></span></div>
         {[
           ["Subestaciones de referencia", "Conexión", "Punto", "Fuente por confirmar · 2025", "v2.4", "Publicada", "02 jul"],
-          ["Indicador de vulnerabilidad", "Social", "CSV municipal", "Fuente demo · 2024", "v1.2", "Publicada", "28 jun"],
+          ["Indicadores de prefactibilidad municipal", "Multicriterio", "CSV municipal", "Base consolidada · 2026", "v1.0", "Publicada", "Actual"],
           ["Restricciones ambientales", "Ambiental", "Polígono", "Compilación interna · 2025", "v3.1", "En validación", "Hoy"],
           ["Áreas de interés – Cliente A", "Cliente", "Polígono", "Carga privada · 2026", "v1.0", "Privada", "Ayer"],
           ["Velocidad media del viento", "Técnica", "Raster", "Fuente por confirmar · 2023", "v1.8", "Borrador", "14 jun"],

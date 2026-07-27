@@ -963,6 +963,7 @@ select:focus-visible {
 .legend-opportunity { background: rgba(70,145,93,0.45); }
 .legend-restriction { background: rgba(185,89,82,0.4); }
 .legend-grid { height: 2px !important; background: #5684be; }
+.legend-municipal { width: 7px !important; height: 7px !important; border-radius: 50% !important; background: #e6a23c; }
 
 .layer-panel {
   position: absolute;

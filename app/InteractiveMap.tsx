@@ -132,6 +132,7 @@ const demoLayers: Record<string, FeatureCollection> = {
 };
 
 const layerIds: Record<string, string[]> = {
+  municipal: ["bond-municipios"],
   solar: ["bond-solar-fill", "bond-solar-outline"],
   grid: ["bond-grid"],
   runap: ["bond-runap-fill", "bond-runap-outline"],
@@ -252,6 +253,7 @@ export default function InteractiveMap({
   const measurePointsRef = useRef<Position[]>([]);
   const exportCollectionRef = useRef<FeatureCollection>(emptyCollection());
   const selectSiteRef = useRef(onSelectSite);
+  const municipalPlacesRef = useRef<Record<string, [number, number]>>({});
   const [mode, setMode] = useState<MapMode>("select");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("Mapa listo · capas de muestra, no oficiales");
@@ -286,8 +288,8 @@ export default function InteractiveMap({
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      center: [-73.35, 10.3],
-      zoom: 6.25,
+      center: [-73.35, 4.65],
+      zoom: 4.7,
       minZoom: 4,
       maxZoom: 17,
       attributionControl: false,
@@ -393,6 +395,39 @@ export default function InteractiveMap({
       map.addSource("bond-grid", { type: "geojson", data: demoLayers.grid });
       map.addLayer({ id: "bond-grid", type: "line", source: "bond-grid", paint: { "line-color": "#2e70bd", "line-width": 3, "line-opacity": 0.88 } });
 
+      map.addSource("bond-municipios", { type: "geojson", data: emptyCollection() });
+      map.addLayer({
+        id: "bond-municipios",
+        type: "circle",
+        source: "bond-municipios",
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 4, 2.5, 7, 4.5, 10, 7],
+          "circle-color": ["interpolate", ["linear"], ["coalesce", ["get", "energia_solar_anual_kwhm2"], 0], 2500, "#c9d9d1", 4500, "#e6a23c", 6500, "#bd5a3c"],
+          "circle-opacity": 0.78,
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 0.7,
+        },
+      });
+
+      void fetch("/data/municipios_prefactibilidad.geojson")
+        .then((response) => {
+          if (!response.ok) throw new Error("No se pudo cargar la capa municipal");
+          return response.json() as Promise<FeatureCollection>;
+        })
+        .then((collection) => {
+          (map.getSource("bond-municipios") as GeoJSONSource).setData(collection);
+          municipalPlacesRef.current = Object.fromEntries(
+            collection.features
+              .filter((feature) => feature.geometry.type === "Point")
+              .map((feature) => [
+                `${String(feature.properties?.municipio ?? "").toLowerCase()}, ${String(feature.properties?.departamento ?? "").toLowerCase()}`,
+                feature.geometry.coordinates as [number, number],
+              ]),
+          );
+          setStatus(`${collection.features.length} municipios cargados · selecciona un punto para ver sus indicadores`);
+        })
+        .catch(() => setStatus("No fue posible cargar la capa municipal; las herramientas del mapa siguen disponibles"));
+
       map.addSource("bond-uploaded", { type: "geojson", data: emptyCollection() });
       map.addLayer({ id: "bond-uploaded-fill", type: "fill", source: "bond-uploaded", filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": "#e6a23c", "fill-opacity": 0.3 } });
       map.addLayer({ id: "bond-uploaded-line", type: "line", source: "bond-uploaded", paint: { "line-color": "#9b641c", "line-width": 3 } });
@@ -416,8 +451,28 @@ export default function InteractiveMap({
             .addTo(map);
         }
       });
+      map.on("click", "bond-municipios", (event) => {
+        const feature = event.features?.[0];
+        if (!feature || feature.geometry.type !== "Point") return;
+        const values = feature.properties ?? {};
+        const format = (value: unknown, digits = 1) => typeof value === "number" ? value.toLocaleString("es-CO", { maximumFractionDigits: digits }) : "Sin dato";
+        new maplibregl.Popup({ closeButton: true, offset: 12, maxWidth: "270px" })
+          .setLngLat(feature.geometry.coordinates as [number, number])
+          .setHTML(
+            `<strong>${values.municipio ?? "Municipio"}, ${values.departamento ?? ""}</strong>` +
+            `<span>${format(values.registros_promediados, 0)} registros promediados</span>` +
+            `<hr/><span>Energía solar anual: ${format(values.energia_solar_anual_kwhm2, 0)} kWh/m²</span>` +
+            `<span>Distancia a subestación: ${format(values.distancia_subestacion_km)} km</span>` +
+            `<span>Cobertura eléctrica: ${format(values.cobertura_electrica_icee, 2)}</span>` +
+            `<span>Vocación del suelo: ${values.vocacion_suelo_predominante || "Sin dato"}</span>` +
+            `<span>Riesgo territorial: ${values.nivel_riesgo_predominante || "Sin dato"}</span>`,
+          )
+          .addTo(map);
+      });
       map.on("mouseenter", "bond-sites", () => { map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", "bond-sites", () => { map.getCanvas().style.cursor = modeRef.current === "select" ? "" : "crosshair"; });
+      map.on("mouseenter", "bond-municipios", () => { map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", "bond-municipios", () => { map.getCanvas().style.cursor = modeRef.current === "select" ? "" : "crosshair"; });
 
       setMapLoaded(true);
       setStatus("Mapa listo · capas de muestra, no oficiales");
@@ -456,7 +511,7 @@ export default function InteractiveMap({
     const map = mapRef.current;
     const normalized = query.trim().toLowerCase();
     if (!map || !normalized) return;
-    let location = namedPlaces[normalized];
+    let location = namedPlaces[normalized] ?? municipalPlacesRef.current[normalized];
     if (!location) {
       const numbers = normalized.split(/[;,\s]+/).map(Number).filter(Number.isFinite);
       if (numbers.length >= 2) {
@@ -465,7 +520,7 @@ export default function InteractiveMap({
       }
     }
     if (!location || Math.abs(location[0]) > 180 || Math.abs(location[1]) > 90) {
-      setStatus("No se reconoció la búsqueda. Prueba “Valledupar” o “10.46, -73.25”");
+      setStatus("No se reconoció la búsqueda. Prueba “Valledupar, Cesar” o “10.46, -73.25”");
       return;
     }
     map.flyTo({ center: location, zoom: 11, essential: true });
@@ -526,7 +581,7 @@ export default function InteractiveMap({
           <MapToolButton active={mode === "select"} label="Seleccionar sitio" onClick={() => setMode("select")}><MousePointer2 size={17} /></MapToolButton>
           <MapToolButton active={mode === "draw"} label="Dibujar polígono" onClick={() => { drawPointsRef.current = []; setMode("draw"); }}><MapPin size={17} /></MapToolButton>
           <MapToolButton active={mode === "measure"} label="Medir distancia" onClick={() => { measurePointsRef.current = []; setMode("measure"); }}><Ruler size={17} /></MapToolButton>
-          <MapToolButton label="Centrar en el Caribe colombiano" onClick={() => mapRef.current?.fitBounds([[-75.2, 8.6], [-71.0, 12.4]], { padding: 40, duration: 900 })}><Maximize2 size={17} /></MapToolButton>
+          <MapToolButton label="Ver Colombia" onClick={() => mapRef.current?.fitBounds([[-79.2, -4.3], [-66.7, 13.7]], { padding: 40, duration: 900 })}><Maximize2 size={17} /></MapToolButton>
           <MapToolButton label="Cargar GeoJSON o KML" onClick={() => fileInputRef.current?.click()}><Upload size={17} /></MapToolButton>
           <MapToolButton label="Exportar geometría" onClick={downloadGeoJson}><Download size={17} /></MapToolButton>
           <MapToolButton label="Limpiar geometrías" onClick={clearUserGeometry}><Trash2 size={17} /></MapToolButton>
@@ -542,6 +597,7 @@ export default function InteractiveMap({
           <span><i className="legend-opportunity" /> Oportunidad</span>
           <span><i className="legend-restriction" /> Restricción</span>
           <span><i className="legend-grid" /> Red</span>
+          <span><i className="legend-municipal" /> Municipios</span>
         </div>
 
         <aside className={`layer-panel ${layersOpen ? "open" : "closed"}`}>
