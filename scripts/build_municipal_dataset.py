@@ -76,12 +76,21 @@ def normalized_code(value):
 
 def main():
     groups = defaultdict(list)
+    source_points = []
     with SOURCE.open(encoding="utf-8-sig", newline="") as source:
         for row in csv.DictReader(source):
             department = (row.get("f1_departamento") or "").strip().upper()
             municipality = (row.get("f1_municipio") or "").strip().upper()
             if department and municipality:
                 groups[(department, municipality)].append(row)
+                longitude = as_number(row.get("f2_longitud_deg"))
+                latitude = as_number(row.get("f2_latitud_deg"))
+                if longitude is not None and latitude is not None:
+                    source_points.append({
+                        "type": "Feature",
+                        "properties": {"departamento": department.title(), "municipio": municipality.title()},
+                        "geometry": {"type": "Point", "coordinates": [longitude, latitude]},
+                    })
 
     output_rows = []
     for (department, municipality), rows in sorted(groups.items()):
@@ -120,11 +129,15 @@ def main():
     (PUBLIC_DATA / "municipios_prefactibilidad.geojson").write_text(
         json.dumps({"type": "FeatureCollection", "features": features}, ensure_ascii=False), encoding="utf-8"
     )
+    (PUBLIC_DATA / "muestras_municipales_origen.geojson").write_text(
+        json.dumps({"type": "FeatureCollection", "features": source_points}, ensure_ascii=False), encoding="utf-8"
+    )
     (PUBLIC_DATA / "municipios_prefactibilidad_resumen.json").write_text(
         json.dumps({
             "municipios": len(output_rows),
             "municipios_con_coordenadas": len(features),
             "registros_fuente": sum(row["registros_promediados"] for row in output_rows),
+            "muestras_georreferenciadas": len(source_points),
             "variables_numericas": len(NUMERIC_FIELDS),
             "variables_contextuales": 8,
             "excluidos_sin_municipio": 211,

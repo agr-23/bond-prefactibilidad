@@ -33,6 +33,25 @@ export type BondMapSite = {
   coordinates: [number, number];
 };
 
+export type MunicipalAreaRecord = {
+  departamento: string;
+  municipio: string;
+  muestrasEnArea: number;
+  centroideEnArea: boolean;
+  energiaSolarAnual: number | null;
+  distanciaSubestacion: number | null;
+  coberturaElectrica: number | null;
+  pobrezaEnergetica: number | null;
+  vocacionSuelo: string;
+  riesgoTerritorial: string;
+};
+
+export type MunicipalAreaAnalysis = {
+  municipios: MunicipalAreaRecord[];
+  muestrasEnArea: number;
+  metodo: "muestras_y_centroides";
+};
+
 type MapMode = "select" | "draw" | "measure";
 
 type InteractiveMapProps = {
@@ -44,6 +63,7 @@ type InteractiveMapProps = {
   layersOpen: boolean;
   onToggleLayersPanel: () => void;
   onOpenLayerAdmin: () => void;
+  onAreaAnalyzed: (analysis: MunicipalAreaAnalysis) => void;
 };
 
 const emptyCollection = (): FeatureCollection => ({ type: "FeatureCollection", features: [] });
@@ -132,7 +152,7 @@ const demoLayers: Record<string, FeatureCollection> = {
 };
 
 const layerIds: Record<string, string[]> = {
-  municipal: ["bond-municipios"],
+  municipal: ["bond-municipios", "bond-municipios-aoi"],
   solar: ["bond-solar-fill", "bond-solar-outline"],
   grid: ["bond-grid"],
   runap: ["bond-runap-fill", "bond-runap-outline"],
@@ -181,6 +201,18 @@ function boundsForCollection(collection: FeatureCollection) {
   };
   collection.features.forEach((feature) => extendGeometry(feature.geometry));
   return bounds.isEmpty() ? null : bounds;
+}
+
+function pointInPolygon(point: Position, ring: Position[]) {
+  let inside = false;
+  for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index++) {
+    const [x, y] = ring[index];
+    const [previousX, previousY] = ring[previous];
+    const crosses = (y > point[1]) !== (previousY > point[1]);
+    const intersection = ((previousX - x) * (point[1] - y)) / (previousY - y || Number.EPSILON) + x;
+    if (crosses && point[0] < intersection) inside = !inside;
+  }
+  return inside;
 }
 
 function parseKml(text: string): FeatureCollection {
@@ -244,6 +276,7 @@ export default function InteractiveMap({
   layersOpen,
   onToggleLayersPanel,
   onOpenLayerAdmin,
+  onAreaAnalyzed,
 }: InteractiveMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -253,7 +286,10 @@ export default function InteractiveMap({
   const measurePointsRef = useRef<Position[]>([]);
   const exportCollectionRef = useRef<FeatureCollection>(emptyCollection());
   const selectSiteRef = useRef(onSelectSite);
+  const analyzeAreaRef = useRef(onAreaAnalyzed);
   const municipalPlacesRef = useRef<Record<string, [number, number]>>({});
+  const municipalFeaturesRef = useRef<FeatureCollection>(emptyCollection());
+  const municipalSamplesRef = useRef<FeatureCollection>(emptyCollection());
   const [mode, setMode] = useState<MapMode>("select");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("Mapa listo · capas de muestra, no oficiales");
@@ -263,6 +299,69 @@ export default function InteractiveMap({
   useEffect(() => {
     selectSiteRef.current = onSelectSite;
   }, [onSelectSite]);
+
+  useEffect(() => {
+    analyzeAreaRef.current = onAreaAnalyzed;
+  }, [onAreaAnalyzed]);
+
+  const analyzePolygon = (ring: Position[]) => {
+    const municipalityFeatures = municipalFeaturesRef.current.features.filter((feature) => feature.geometry.type === "Point");
+    if (!municipalityFeatures.length) {
+      setStatus("La capa municipal todavía está cargando; vuelve a cerrar el polígono en unos segundos");
+      return;
+    }
+
+    const selected = new Map<string, { feature: Feature; muestras: number; centroide: boolean }>();
+    municipalSamplesRef.current.features.forEach((feature) => {
+      if (feature.geometry.type !== "Point" || !pointInPolygon(feature.geometry.coordinates, ring)) return;
+      const properties = feature.properties ?? {};
+      const key = `${properties.departamento}|${properties.municipio}`;
+      const previous = selected.get(key) ?? { feature, muestras: 0, centroide: false };
+      previous.muestras += 1;
+      selected.set(key, previous);
+    });
+
+    municipalityFeatures.forEach((feature) => {
+      if (feature.geometry.type !== "Point") return;
+      const properties = feature.properties ?? {};
+      const key = `${properties.departamento}|${properties.municipio}`;
+      if (!pointInPolygon(feature.geometry.coordinates, ring) && !selected.has(key)) return;
+      const previous = selected.get(key) ?? { feature, muestras: 0, centroide: false };
+      previous.feature = feature;
+      previous.centroide = pointInPolygon(feature.geometry.coordinates, ring);
+      selected.set(key, previous);
+    });
+
+    const municipalities = [...selected.values()]
+      .map(({ feature, muestras, centroide }) => {
+        const properties = feature.properties ?? {};
+        const number = (value: unknown) => typeof value === "number" ? value : null;
+        return {
+          departamento: String(properties.departamento ?? ""),
+          municipio: String(properties.municipio ?? ""),
+          muestrasEnArea: muestras,
+          centroideEnArea: centroide,
+          energiaSolarAnual: number(properties.energia_solar_anual_kwhm2),
+          distanciaSubestacion: number(properties.distancia_subestacion_km),
+          coberturaElectrica: number(properties.cobertura_electrica_icee),
+          pobrezaEnergetica: number(properties.pobreza_energetica),
+          vocacionSuelo: String(properties.vocacion_suelo_predominante ?? "Sin dato"),
+          riesgoTerritorial: String(properties.nivel_riesgo_predominante ?? "Sin dato"),
+        };
+      })
+      .sort((a, b) => b.muestrasEnArea - a.muestrasEnArea || a.municipio.localeCompare(b.municipio, "es"));
+
+    const highlighted = municipalityFeatures.filter((feature) => {
+      const properties = feature.properties ?? {};
+      return selected.has(`${properties.departamento}|${properties.municipio}`);
+    });
+    (mapRef.current?.getSource("bond-municipios-aoi") as GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: highlighted });
+    const samplesInArea = municipalities.reduce((total, municipality) => total + municipality.muestrasEnArea, 0);
+    analyzeAreaRef.current({ municipios: municipalities, muestrasEnArea: samplesInArea, metodo: "muestras_y_centroides" });
+    setStatus(municipalities.length
+      ? `${municipalities.length} municipios detectados · ${samplesInArea} muestras territoriales en el área`
+      : "No se detectaron municipios con evidencia dentro del polígono");
+  };
 
   useEffect(() => {
     modeRef.current = mode;
@@ -359,8 +458,8 @@ export default function InteractiveMap({
       };
       drawPointsRef.current = [];
       updateSketch(collection);
+      analyzePolygon(ring);
       setMode("select");
-      setStatus("AOI creada · disponible para exportar como GeoJSON");
     };
 
     const handleMove = (event: maplibregl.MapMouseEvent) => {
@@ -408,6 +507,8 @@ export default function InteractiveMap({
           "circle-stroke-width": 0.7,
         },
       });
+      map.addSource("bond-municipios-aoi", { type: "geojson", data: emptyCollection() });
+      map.addLayer({ id: "bond-municipios-aoi", type: "circle", source: "bond-municipios-aoi", paint: { "circle-radius": 9, "circle-color": "#ffffff", "circle-opacity": 0.15, "circle-stroke-color": "#1f6b50", "circle-stroke-width": 2 } });
 
       void fetch("/data/municipios_prefactibilidad.geojson")
         .then((response) => {
@@ -416,6 +517,7 @@ export default function InteractiveMap({
         })
         .then((collection) => {
           (map.getSource("bond-municipios") as GeoJSONSource).setData(collection);
+          municipalFeaturesRef.current = collection;
           municipalPlacesRef.current = Object.fromEntries(
             collection.features
               .filter((feature) => feature.geometry.type === "Point")
@@ -427,6 +529,9 @@ export default function InteractiveMap({
           setStatus(`${collection.features.length} municipios cargados · selecciona un punto para ver sus indicadores`);
         })
         .catch(() => setStatus("No fue posible cargar la capa municipal; las herramientas del mapa siguen disponibles"));
+      void fetch("/data/muestras_municipales_origen.geojson")
+        .then((response) => response.ok ? response.json() as Promise<FeatureCollection> : emptyCollection())
+        .then((collection) => { municipalSamplesRef.current = collection; });
 
       map.addSource("bond-uploaded", { type: "geojson", data: emptyCollection() });
       map.addLayer({ id: "bond-uploaded-fill", type: "fill", source: "bond-uploaded", filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": "#e6a23c", "fill-opacity": 0.3 } });
@@ -550,6 +655,8 @@ export default function InteractiveMap({
     measurePointsRef.current = [];
     (mapRef.current?.getSource("bond-sketch") as GeoJSONSource | undefined)?.setData(collection);
     (mapRef.current?.getSource("bond-uploaded") as GeoJSONSource | undefined)?.setData(collection);
+    (mapRef.current?.getSource("bond-municipios-aoi") as GeoJSONSource | undefined)?.setData(collection);
+    analyzeAreaRef.current({ municipios: [], muestrasEnArea: 0, metodo: "muestras_y_centroides" });
     setMode("select");
     setStatus("Geometrías temporales eliminadas");
   };

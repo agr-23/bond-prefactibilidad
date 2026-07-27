@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import InteractiveMap from "./InteractiveMap";
+import InteractiveMap, { type MunicipalAreaAnalysis } from "./InteractiveMap";
 import {
   AlertTriangle,
   ArrowRight,
@@ -75,6 +75,11 @@ type Site = {
   decision: "GO" | "CONDITIONAL GO" | "NO-GO";
   coordinates: [number, number];
   dimensions: Record<string, number>;
+};
+
+type ActiveProject = {
+  name: string;
+  technology: string;
 };
 
 const sites: Site[] = [
@@ -183,6 +188,10 @@ export default function BondApp() {
   const [reportOpen, setReportOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [projectOpen, setProjectOpen] = useState(false);
+  const [projectName, setProjectName] = useState("");
+  const [projectTechnology, setProjectTechnology] = useState("Solar FV");
+  const [activeProject, setActiveProject] = useState<ActiveProject | null>(null);
+  const [municipalAnalysis, setMunicipalAnalysis] = useState<MunicipalAreaAnalysis>({ municipios: [], muestrasEnArea: 0, metodo: "muestras_y_centroides" });
   const [uploadStep, setUploadStep] = useState(1);
   const [uploadedFile, setUploadedFile] = useState("");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -205,6 +214,13 @@ export default function BondApp() {
   const navigate = (key: NavKey) => {
     setActiveView(key);
     setMobileNavOpen(false);
+  };
+
+  const createProject = () => {
+    setActiveProject({ name: projectName.trim() || "Nueva evaluación territorial", technology: projectTechnology });
+    setMunicipalAnalysis({ municipios: [], muestrasEnArea: 0, metodo: "muestras_y_centroides" });
+    setProjectOpen(false);
+    setActiveView("Explorador");
   };
 
   const renderScenarioControl = () => (
@@ -253,9 +269,38 @@ export default function BondApp() {
           layersOpen={layersOpen}
           onToggleLayersPanel={() => setLayersOpen((open) => !open)}
           onOpenLayerAdmin={() => setActiveView("Capas y variables")}
+          onAreaAnalyzed={setMunicipalAnalysis}
         />
 
         <aside className="evaluation-panel">
+          {activeProject && (
+            <section className="project-area-summary">
+              <span className="micro-label">PROYECTO ACTIVO</span>
+              <strong>{activeProject.name}</strong>
+              <small>{activeProject.technology} · Dibuja y cierra el polígono para leer municipios.</small>
+            </section>
+          )}
+          {municipalAnalysis.municipios.length > 0 && (
+            <section className="municipal-results">
+              <div className="section-title-row"><h3>Municipios en el área</h3><span className="count-badge">{municipalAnalysis.municipios.length}</span></div>
+              <p>{municipalAnalysis.muestrasEnArea} muestras territoriales detectadas. Incluye municipios con muestras o centroide dentro del polígono.</p>
+              <div className="municipal-result-list">
+                {municipalAnalysis.municipios.map((municipality) => (
+                  <article key={`${municipality.departamento}-${municipality.municipio}`}>
+                    <div><strong>{municipality.municipio}</strong><span>{municipality.departamento}</span></div>
+                    <small>{municipality.muestrasEnArea} muestras · {municipality.centroideEnArea ? "centroide dentro" : "cruce por evidencia"}</small>
+                    <dl>
+                      <div><dt>Solar anual</dt><dd>{municipality.energiaSolarAnual?.toLocaleString("es-CO", { maximumFractionDigits: 0 }) ?? "Sin dato"} kWh/m²</dd></div>
+                      <div><dt>Subestación</dt><dd>{municipality.distanciaSubestacion?.toLocaleString("es-CO", { maximumFractionDigits: 1 }) ?? "Sin dato"} km</dd></div>
+                      <div><dt>Cobertura ICEE</dt><dd>{municipality.coberturaElectrica?.toLocaleString("es-CO", { maximumFractionDigits: 2 }) ?? "Sin dato"}</dd></div>
+                      <div><dt>Suelo</dt><dd>{municipality.vocacionSuelo}</dd></div>
+                    </dl>
+                  </article>
+                ))}
+              </div>
+              <small className="municipal-method-note">Cruce preliminar con puntos territoriales y centroides municipales; no reemplaza límites oficiales DIVIPOLA.</small>
+            </section>
+          )}
           <div className="site-selector-row">
             <div>
               <span className="micro-label">SITIO SELECCIONADO</span>
@@ -571,9 +616,9 @@ export default function BondApp() {
       {projectOpen && (
         <div className="modal-backdrop" role="presentation"><div className="modal project-modal" role="dialog" aria-modal="true" aria-labelledby="project-title">
           <div className="modal-header"><div><span className="eyebrow">NUEVA EVALUACIÓN</span><h2 id="project-title">Crear proyecto</h2><p>Define el contexto mínimo; podrás completar los supuestos después.</p></div><IconButton label="Cerrar" onClick={() => setProjectOpen(false)}><X size={18}/></IconButton></div>
-          <div className="modal-form two-col"><label className="span-two"><span>Nombre del proyecto</span><input placeholder="Ej. Corredor Solar Norte"/></label><label><span>Organización</span><select><option>Cliente Energía Demo</option></select></label><label><span>Tecnología</span><select><option>Solar FV</option><option>Eólica</option><option>Híbrida</option><option>BESS</option><option>Autogeneración</option></select></label><label><span>Escala inicial</span><select><option>Municipal</option><option>Departamental</option><option>Predial</option><option>Polígono cargado</option></select></label><label><span>Criterio principal</span><select><option>Balance integral</option><option>Conexión</option><option>Riesgo social</option><option>Restricción ambiental</option></select></label></div>
-          <div className="technology-grid"><button className="selected" type="button"><Sun size={20}/><span>Solar FV</span></button><button type="button"><Wind size={20}/><span>Eólica</span></button><button type="button"><BatteryCharging size={20}/><span>BESS</span></button><button type="button"><Zap size={20}/><span>Híbrida</span></button><button type="button"><Building2 size={20}/><span>Autogeneración</span></button></div>
-          <div className="modal-footer"><span>Los campos marcados son editables durante la evaluación.</span><div><button className="secondary-button" type="button" onClick={() => setProjectOpen(false)}>Cancelar</button><button className="primary-button" type="button" onClick={() => {setProjectOpen(false);setActiveView("Explorador");}}>Crear y definir área <ArrowRight size={16}/></button></div></div>
+          <div className="modal-form two-col"><label className="span-two"><span>Nombre del proyecto</span><input value={projectName} onChange={(event) => setProjectName(event.target.value)} placeholder="Ej. Corredor Solar Norte"/></label><label><span>Organización</span><select><option>Cliente Energía Demo</option></select></label><label><span>Tecnología</span><select value={projectTechnology} onChange={(event) => setProjectTechnology(event.target.value)}><option>Solar FV</option><option>Eólica</option><option>Híbrida</option><option>BESS</option><option>Autogeneración</option></select></label><label><span>Escala inicial</span><select><option>Polígono de análisis</option><option>Municipal</option><option>Departamental</option><option>Predial</option></select></label><label><span>Criterio principal</span><select><option>Balance integral</option><option>Conexión</option><option>Riesgo social</option><option>Restricción ambiental</option></select></label></div>
+          <div className="technology-grid">{[[Sun,"Solar FV"],[Wind,"Eólica"],[BatteryCharging,"BESS"],[Zap,"Híbrida"],[Building2,"Autogeneración"]].map(([Icon, label]) => <button className={projectTechnology === label ? "selected" : ""} type="button" key={String(label)} onClick={() => setProjectTechnology(String(label))}><Icon size={20}/><span>{String(label)}</span></button>)}</div>
+          <div className="modal-footer"><span>Al crearlo, dibuja el área en el mapa para analizar los municipios alcanzados.</span><div><button className="secondary-button" type="button" onClick={() => setProjectOpen(false)}>Cancelar</button><button className="primary-button" type="button" onClick={createProject}>Crear y definir área <ArrowRight size={16}/></button></div></div>
         </div></div>
       )}
 
