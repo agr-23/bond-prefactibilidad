@@ -523,7 +523,7 @@ export default function InteractiveMap({
               .filter((feature) => feature.geometry.type === "Point")
               .map((feature) => [
                 `${String(feature.properties?.municipio ?? "").toLowerCase()}, ${String(feature.properties?.departamento ?? "").toLowerCase()}`,
-                feature.geometry.coordinates as [number, number],
+                (feature.geometry as { type: "Point"; coordinates: number[] }).coordinates as [number, number],
               ]),
           );
           setStatus(`${collection.features.length} municipios cargados · selecciona un punto para ver sus indicadores`);

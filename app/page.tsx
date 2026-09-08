@@ -1,5 +1,5 @@
-import BondApp from "./BondApp";
+import Studio from "./studio/Studio";
 
 export default function Home() {
-  return <BondApp />;
+  return <Studio />;
 }

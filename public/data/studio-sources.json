@@ -1,0 +1,13 @@
+{
+  "retrievedAt": "2026-09-08T16:42:41.657Z",
+  "dane": {
+    "url": "https://geoportal.dane.gov.co/mparcgis/rest/services/MGN2024/Serv_CapasMGN_2024/MapServer/317",
+    "year": 2024,
+    "municipalities": 1121,
+    "displayToleranceDegrees": 0.002
+  },
+  "nasa": {
+    "url": "https://power.larc.nasa.gov/",
+    "referencePoints": 8
+  }
+}

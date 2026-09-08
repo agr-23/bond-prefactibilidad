@@ -1,0 +1,1 @@
+ALTER TABLE `studio_records` ADD `byte_size` integer DEFAULT 0 NOT NULL;

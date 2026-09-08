@@ -1,0 +1,14 @@
+import type {Feature, FeatureCollection, Polygon, MultiPolygon} from 'geojson';
+export type Area = Feature<Polygon | MultiPolygon>;
+export type MetricValue = string | number | null;
+export type MunicipalHit = {code:string;name:string;department:string;areaHa:number;share:number;data:Record<string,MetricValue>|null};
+export type Resource = {solar:number|null;wind:number|null;temperature:number|null;months:{month:string;solar:number|null;wind:number|null}[];coordinates:number[];url:string;period:string;retrievedAt:string;units:Record<string,string>};
+export type Analysis = {version:string;createdAt:string;areaHa:number;municipalities:MunicipalHit[];coveredPct:number;overlaps:FeatureCollection;resource:Resource|null;warnings:string[];sources:{label:string;url:string;detail:string}[];layerHits:{id:string;name:string;count:number;role:string}[]};
+export type Scenario = {name:string;resource:number;grid:number;roads:number};
+export const defaultScenario:Scenario={name:'Balanceado',resource:50,grid:30,roads:20};
+export type Project={id:string;name:string;technology:string;capacity:number|null;geometry:Area|null;analysis:Analysis|null;scenario:Scenario;createdAt:string;updatedAt:string;revision:number};
+export type Layer={id:string;name:string;kind:string;role:'context'|'restriction';color:string;features:FeatureCollection;count:number;createdAt:string;notes:string[];originalName:string;visible?:boolean};
+export type ChatMessage={role:'user'|'assistant';text:string;mode?:string};
+export const emptyFeatures=():FeatureCollection=>({type:'FeatureCollection',features:[]});
+export const norm=(s:unknown)=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+export const format=(n:number|null|undefined,decimals=1)=>n==null?'Sin dato':n.toLocaleString('es-CO',{maximumFractionDigits:decimals});
