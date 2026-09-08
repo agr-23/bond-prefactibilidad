@@ -10,8 +10,5 @@ declare module 'cloudflare:workers' {
     GROQ_API_KEY?: string;
     GROQ_MODEL?: string;
     AI_PROVIDER?: string;
-    GROQ_API_KEY?: string;
-    GROQ_MODEL?: string;
-    AI_PROVIDER?: string;
   };
 }

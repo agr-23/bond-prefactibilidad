@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 const root = new URL('../public/data/', import.meta.url);
-export const dane = 'https://geoportal.dane.gov.co/mparcgis/rest/services/MGN2024/Serv_CapasMGN_2024/MapServer/317';
+export const dane = 'https://geoportal.dane.gov.co/mparcgis/rest/services/MGN2024/Serv_CapasMGN_2024/FeatureServer/317';
 async function readJson(url) {
   const r = await fetch(url, {signal: AbortSignal.timeout(120000)});
   if (!r.ok) throw new Error(`${r.status}: ${url}`);
@@ -10,7 +10,7 @@ async function readJson(url) {
 }
 const query = new URLSearchParams({where:'1=1',outFields:'mpio_cdpmp,mpio_cnmbr,dpto_cnmbr',returnGeometry:'true',outSR:'4326',maxAllowableOffset:'0.002',f:'geojson'});
 const boundaries = await readJson(`${dane}/query?${query}`);
-if(boundaries.exceededTransferLimit || boundaries.features?.length < 1100) throw new Error('Incomplete municipal boundary download');
+if(boundaries.exceededTransferLimit || boundaries.features?.length < 1100 || boundaries.features.some(f=>!f.geometry?.coordinates?.length)) throw new Error('Incomplete municipal boundary download');
 await fs.writeFile(new URL('dane-municipal-display.geojson', root), JSON.stringify(boundaries));
 console.log(`DANE: ${boundaries.features.length} boundaries (display only, 0.002 degree generalization).`);
 const locations = [['Riohacha',-72.91,11.54],['Valledupar',-73.25,10.46],['Barranquilla',-74.80,10.98],['Medellin',-75.57,6.24],['Bogota',-74.08,4.61],['Cali',-76.53,3.45],['Villavicencio',-73.63,4.14],['Leticia',-69.94,-4.21]];

@@ -23,7 +23,8 @@ export function intersectMunicipalities(aoi:Area,boundaries:FeatureCollection,ro
   const total=area(aoi),hits:MunicipalHit[]=[],features:Feature[]=[];
   const indexed=new Map(rows.map(r=>[norm(r.departamento)+'|'+norm(r.municipio),r]));
   for(const f of boundaries.features){
-    if(!['Polygon','MultiPolygon'].includes(f.geometry.type))continue;
+    if(!f.geometry||!['Polygon','MultiPolygon'].includes(f.geometry.type))throw new Error('La cartografia municipal contiene elementos sin poligono.');
+    const ab=bbox(aoi),fb=f.bbox??bbox(f);if(fb[0]>ab[2]||fb[2]<ab[0]||fb[1]>ab[3]||fb[3]<ab[1])continue;
     const cut=intersect(featureCollection([aoi,f as Feature<Polygon|MultiPolygon>]));
     if(!cut)continue;
     const size=area(cut);if(size<0.01)continue;
@@ -49,7 +50,7 @@ export function scoreProject(project:Pick<Project,'analysis'|'technology'|'scena
   const grid=weightedMetric(a.municipalities,'distancia_subestacion_km'),roads=weightedMetric(a.municipalities,'distancia_via_t1_km');
   const metrics=[{key:'resource',label:project.technology==='BESS'?'No aplica (BESS)':project.technology==='Hibrida'?'Solar + viento':project.technology==='Eolica'?'Viento a 50 m':'Recurso solar',score:resource,coverage:resource==null?0:100},{key:'grid',label:'Proximidad a red',score:grid.value==null?null:clamp(100-grid.value),coverage:grid.coverage},{key:'roads',label:'Acceso vial',score:roads.value==null?null:clamp(100-roads.value),coverage:roads.coverage}];
   let sum=0,weights=0,configured=0,coveredWeights=0;
-  for(const m of metrics){const w=project.scenario[m.key as keyof Omit<Scenario,'name'>];configured+=w;if(m.score!==null){sum+=m.score*w;weights+=w;coveredWeights+=w*m.coverage/100;}}
+  for(const m of metrics){if(project.technology==='BESS'&&m.key==='resource')continue;const w=project.scenario[m.key as keyof Omit<Scenario,'name'>];configured+=w;if(m.score!==null){sum+=m.score*w;weights+=w;coveredWeights+=w*m.coverage/100;}}
   return {score:weights?sum/weights:null,coverage:configured?coveredWeights/configured*100:0,metrics,decision:'Prefactibilidad integral pendiente'};
 }
 export function layerIntersections(aoi:Area,layers:Layer[]){return layers.map(l=>({id:l.id,name:l.name,role:l.role,count:l.features.features.filter(f=>{try{return booleanIntersects(aoi,f);}catch{return false;}}).length}));}

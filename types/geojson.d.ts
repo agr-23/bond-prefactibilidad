@@ -15,6 +15,7 @@ declare module "geojson" {
     geometry: G;
     properties: P;
     id?: string | number;
+    bbox?: [number,number,number,number] | [number,number,number,number,number,number];
   };
 
   export type FeatureCollection<G extends Geometry = Geometry, P = Record<string, unknown> | null> = {

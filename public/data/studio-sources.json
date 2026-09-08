@@ -1,10 +1,11 @@
 {
-  "retrievedAt": "2026-09-08T16:42:41.657Z",
+  "retrievedAt": "2026-09-08T19:40:52.944Z",
   "dane": {
-    "url": "https://geoportal.dane.gov.co/mparcgis/rest/services/MGN2024/Serv_CapasMGN_2024/MapServer/317",
+    "url": "https://geoportal.dane.gov.co/mparcgis/rest/services/MGN2024/Serv_CapasMGN_2024/FeatureServer/317",
     "year": 2024,
     "municipalities": 1121,
-    "displayToleranceDegrees": 0.002
+    "displayToleranceDegrees": 0.002,
+    "backupToleranceDegrees": 0.00005
   },
   "nasa": {
     "url": "https://power.larc.nasa.gov/",

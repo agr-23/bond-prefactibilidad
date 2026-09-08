@@ -48,14 +48,16 @@ export async function POST(request:Request){try{
  }
  if(b.op==='analyze'){
   const p=await getRecord<Project>(owner,b.id,'project');if(!p.geometry)throw new HttpError(400,'Guarda un poligono en el proyecto.');const aoi=validateArea(p.geometry);
-  const boundaries=await municipalBoundaries(aoi);
+  const municipal=await municipalBoundaries(aoi,async path=>{const assetRequest=new Request(new URL(path,request.url));const assets=runtime().ASSETS;const r=assets?await assets.fetch(assetRequest):process.env.NODE_ENV==='development'?await fetch(assetRequest):null;if(!r?.ok)throw new HttpError(503,'No se pudo cargar el respaldo municipal.');return r.json();});
+  const boundaries=municipal.boundaries;
   const rows=Papa.parse<Record<string,unknown>>(municipalCsv,{header:true,dynamicTyping:true,skipEmptyLines:true}).data;
   const spatial=intersectMunicipalities(aoi,boundaries,rows),warnings=['Los indicadores BOND son promedios de registros municipales; no representan mediciones prediales. Su vigencia y unidades requieren verificacion.','Compatibilidad POT, restricciones oficiales, capacidad de conexion y evaluacion social requieren validacion.','NASA POWER ofrece climatologia de una celda en un punto representativo, no una medicion predial ni un promedio del poligono. Viento a 50 m, sin extrapolacion a altura de buje.'];
-  let resource=null;try{resource=await resourcesAt(aoi);}catch{warnings.push('NASA POWER no respondio. Reejecuta el analisis para recuperar el recurso.');}
+  if(municipal.warning)warnings.unshift(municipal.warning);
+  let resource=null;try{resource=await resourcesAt(aoi);}catch(e){warnings.push(`${e instanceof Error?e.message:'NASA POWER no respondio.'} El analisis municipal se conserva. Reejecuta para recuperar el recurso.`);}
   if(spatial.coveredPct<99.5)warnings.push(`${(100-spatial.coveredPct).toFixed(1)}% del area queda fuera de la cobertura municipal consultada.`);
   const missing=spatial.municipalities.filter(m=>!m.data);if(missing.length)warnings.push(`${missing.length} municipios no tienen coincidencia por nombre y departamento en la base BOND.`);
   const layers=await listRecords<Layer>(owner,'layer');
-  const analysis:Analysis={...spatial,version:'2.0',createdAt:new Date().toISOString(),resource,warnings,layerHits:layerIntersections(aoi,layers),sources:[{label:'DANE MGN 2024',url:DANE,detail:'Interseccion de poligonos con geometria del servicio, sin simplificacion de analisis.'},{label:'Base municipal BOND',url:'/data/municipios_prefactibilidad.csv',detail:'CSV aportado, 913 grupos municipales. Union por nombre y departamento; codigos y coordenadas originales no usados para el cruce.'},{label:'NASA POWER',url:resource?.url??NASA,detail:resource?`Climatologia ${resource.period}; punto representativo; viento a 50 m; unidades del proveedor.`:'Consulta no disponible.'}]};
+  const analysis:Analysis={...spatial,version:'2.1',boundaryMode:municipal.mode,createdAt:new Date().toISOString(),resource,warnings,layerHits:layerIntersections(aoi,layers),sources:[{label:'DANE MGN 2024',url:DANE,detail:municipal.detail},{label:'Base municipal BOND',url:'/data/municipios_prefactibilidad.csv',detail:'CSV aportado, 913 grupos municipales. Union por nombre y departamento; codigos y coordenadas originales no usados para el cruce.'},{label:'NASA POWER',url:resource?.url??NASA,detail:resource?`Climatologia ${resource.period}; punto representativo; viento a 50 m; unidades del proveedor.`:'Consulta no disponible.'}]};
   return json(await saveRecord(owner,'project',{...p,analysis},p.revision));
  }
  if(b.op==='chat'){
