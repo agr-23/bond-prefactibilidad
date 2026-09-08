@@ -13,7 +13,8 @@ export async function GET(request:Request){try{
  const user=identity(request),op=new URL(request.url).searchParams.get('op');
  if(op==='original'){const id=new URL(request.url).searchParams.get('id')??'';const layer=await getRecord<Layer>(user,id,'layer');const file=await runtime().BUCKET.get(`${user}/original/${id}`);if(!file)throw new HttpError(404,'Original no disponible.');return new Response(await file.arrayBuffer(),{headers:{'Content-Type':'application/octet-stream','Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(layer.originalName)}`,'Cache-Control':'no-store'}});}
  const [projects,layers]=await Promise.all([listRecords<Project>(user,'project'),listRecords<Layer>(user,'layer')]);
- return json({projects,layers,aiReady:!!runtime().OPENAI_API_KEY,user:request.headers.get('oai-authenticated-user-email')??'Entorno local'});
+ const rt=runtime();
+ return json({projects,layers,aiReady:!!(rt.GROQ_API_KEY||rt.OPENAI_API_KEY),user:request.headers.get('oai-authenticated-user-email')??'Entorno local'});
  }catch(e){return fail(e);}}
 function scenario(v:any):Scenario{if(!v)return defaultScenario;for(const k of ['resource','grid','roads'])if(!Number.isFinite(v[k])||v[k]<0||v[k]>100)throw new HttpError(400,'Pesos invalidos.');if(v.resource+v.grid+v.roads<=0)throw new HttpError(400,'Asigna al menos un peso mayor que cero.');return {name:String(v.name??'Personalizado').slice(0,40),resource:v.resource,grid:v.grid,roads:v.roads};}
 export async function POST(request:Request){try{
