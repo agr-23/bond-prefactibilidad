@@ -1,0 +1,182 @@
+/*
+ * Tokens de la landing de BOND.
+ *
+ * La paleta vive en :root, se redefine para el tema oscuro con
+ * prefers-color-scheme y se expone a Tailwind 4 con @theme.
+ * Los capítulos alternan dos superficies:
+ *   .lx-deep  → grafito casi negro
+ *   .lx-paper → blanco roto (grafito suave en tema oscuro)
+ * Cada superficie reasigna los tokens semánticos (--lx-bg, --lx-fg…), así
+ * los componentes y las utilidades (text-ink, border-rule…) sirven en ambas.
+ *
+ * Contraste AA verificado: texto secundario ≥ 5,6:1; acentos de texto ≥ 4,8:1.
+ * Cian y ámbar son acentos de luz: se usan con moderación. Verde, ámbar y rojo
+ * se reservan para Go, Conditional Go y No-Go, siempre con texto o ícono.
+ */
+
+:root {
+  /* Paleta base, alineada con los acentos de la plataforma */
+  --lx-graphite-950: #0b0f11;
+  --lx-graphite-900: #11171a;
+  --lx-graphite-850: #161d20;
+  --lx-paper-50: #f5f4f0;
+  --lx-ink-900: #111618;
+  --lx-ink-600: #535d61;
+  --lx-mist-50: #eef3f4;
+  --lx-mist-400: #9aa8ad;
+  --lx-cyan-300: #5ce1d6;
+  --lx-cyan-600: #087d87;
+  --lx-cyan-700: #05616b;
+  --lx-amber-300: #f2c14e;
+  --lx-amber-700: #8c5c1b;
+  --lx-go-300: #62d59c;
+  --lx-go-700: #1f7a4d;
+  --lx-nogo-300: #ff8f85;
+  --lx-nogo-700: #b3261e;
+
+  /* Superficie grafito */
+  --lx-deep-bg: var(--lx-graphite-950);
+  --lx-deep-fg: var(--lx-mist-50);
+  --lx-deep-fg-2: var(--lx-mist-400);
+  --lx-deep-line: rgb(238 243 244 / 0.14);
+  --lx-deep-surface: var(--lx-graphite-850);
+  --lx-deep-accent: var(--lx-cyan-300);
+  --lx-deep-accent-fill: var(--lx-cyan-300);
+  --lx-deep-on-accent: var(--lx-graphite-950);
+  --lx-deep-amber: var(--lx-amber-300);
+  --lx-deep-go: var(--lx-go-300);
+  --lx-deep-cond: var(--lx-amber-300);
+  --lx-deep-nogo: var(--lx-nogo-300);
+
+  /* Superficie blanco roto */
+  --lx-paper-bg: var(--lx-paper-50);
+  --lx-paper-fg: var(--lx-ink-900);
+  --lx-paper-fg-2: var(--lx-ink-600);
+  --lx-paper-line: rgb(17 22 24 / 0.14);
+  --lx-paper-surface: #ffffff;
+  --lx-paper-accent: var(--lx-cyan-700);
+  --lx-paper-accent-fill: var(--lx-cyan-600);
+  --lx-paper-on-accent: #ffffff;
+  --lx-paper-amber: var(--lx-amber-700);
+  --lx-paper-go: var(--lx-go-700);
+  --lx-paper-cond: var(--lx-amber-700);
+  --lx-paper-nogo: var(--lx-nogo-700);
+
+  /* Tipografía: titulares de 48 a 120 px, cuerpo de 19 a 21 px */
+  --lx-text-display: clamp(3rem, 0.9rem + 7.4vw, 7.5rem);
+  --lx-text-headline: clamp(2.75rem, 1.1rem + 5vw, 5.75rem);
+  --lx-text-title: clamp(1.75rem, 1.15rem + 1.8vw, 2.75rem);
+  --lx-text-subtitle: clamp(1.375rem, 1.15rem + 0.7vw, 1.75rem);
+  --lx-text-lead: clamp(1.1875rem, 1.08rem + 0.4vw, 1.3125rem);
+  --lx-text-body: 1.0625rem;
+  --lx-text-caption: 0.875rem;
+  --lx-text-micro: 0.75rem;
+
+  --lx-ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --lx-nav-height: 3.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --lx-deep-bg: #070a0b;
+    --lx-deep-surface: #12181b;
+
+    --lx-paper-bg: #151a1c;
+    --lx-paper-fg: #eceff0;
+    --lx-paper-fg-2: #a3adb1;
+    --lx-paper-line: rgb(236 239 240 / 0.14);
+    --lx-paper-surface: #1c2225;
+    --lx-paper-accent: var(--lx-cyan-300);
+    --lx-paper-accent-fill: var(--lx-cyan-300);
+    --lx-paper-on-accent: var(--lx-graphite-950);
+    --lx-paper-amber: var(--lx-amber-300);
+    --lx-paper-go: var(--lx-go-300);
+    --lx-paper-cond: var(--lx-amber-300);
+    --lx-paper-nogo: var(--lx-nogo-300);
+  }
+}
+
+.lx,
+.lx-deep {
+  color-scheme: dark;
+  --lx-bg: var(--lx-deep-bg);
+  --lx-fg: var(--lx-deep-fg);
+  --lx-fg-2: var(--lx-deep-fg-2);
+  --lx-line: var(--lx-deep-line);
+  --lx-surface: var(--lx-deep-surface);
+  --lx-accent: var(--lx-deep-accent);
+  --lx-accent-fill: var(--lx-deep-accent-fill);
+  --lx-on-accent: var(--lx-deep-on-accent);
+  --lx-amber: var(--lx-deep-amber);
+  --lx-go: var(--lx-deep-go);
+  --lx-cond: var(--lx-deep-cond);
+  --lx-nogo: var(--lx-deep-nogo);
+}
+
+.lx-paper {
+  color-scheme: light;
+  --lx-bg: var(--lx-paper-bg);
+  --lx-fg: var(--lx-paper-fg);
+  --lx-fg-2: var(--lx-paper-fg-2);
+  --lx-line: var(--lx-paper-line);
+  --lx-surface: var(--lx-paper-surface);
+  --lx-accent: var(--lx-paper-accent);
+  --lx-accent-fill: var(--lx-paper-accent-fill);
+  --lx-on-accent: var(--lx-paper-on-accent);
+  --lx-amber: var(--lx-paper-amber);
+  --lx-go: var(--lx-paper-go);
+  --lx-cond: var(--lx-paper-cond);
+  --lx-nogo: var(--lx-paper-nogo);
+}
+
+@media (prefers-color-scheme: dark) {
+  .lx-paper {
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-canvas: var(--lx-bg);
+  --color-ink: var(--lx-fg);
+  --color-ink-2: var(--lx-fg-2);
+  --color-rule: var(--lx-line);
+  --color-surface: var(--lx-surface);
+  --color-accent: var(--lx-accent);
+  --color-accent-fill: var(--lx-accent-fill);
+  --color-on-accent: var(--lx-on-accent);
+  --color-amber: var(--lx-amber);
+  --color-go: var(--lx-go);
+  --color-cond: var(--lx-cond);
+  --color-nogo: var(--lx-nogo);
+
+  --font-display: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+
+  --text-display: var(--lx-text-display);
+  --text-display--line-height: 1.02;
+  --text-display--letter-spacing: -0.035em;
+  --text-display--font-weight: 600;
+  --text-headline: var(--lx-text-headline);
+  --text-headline--line-height: 1.04;
+  --text-headline--letter-spacing: -0.03em;
+  --text-headline--font-weight: 600;
+  --text-title: var(--lx-text-title);
+  --text-title--line-height: 1.12;
+  --text-title--letter-spacing: -0.022em;
+  --text-title--font-weight: 600;
+  --text-subtitle: var(--lx-text-subtitle);
+  --text-subtitle--line-height: 1.25;
+  --text-subtitle--letter-spacing: -0.014em;
+  --text-subtitle--font-weight: 600;
+  --text-lead: var(--lx-text-lead);
+  --text-lead--line-height: 1.5;
+  --text-lead--letter-spacing: -0.006em;
+  --text-body: var(--lx-text-body);
+  --text-body--line-height: 1.55;
+  --text-caption: var(--lx-text-caption);
+  --text-caption--line-height: 1.45;
+  --text-micro: var(--lx-text-micro);
+  --text-micro--line-height: 1.35;
+  --text-micro--letter-spacing: 0.06em;
+
+  --ease-lx: cubic-bezier(0.25, 0.1, 0.25, 1);
+}

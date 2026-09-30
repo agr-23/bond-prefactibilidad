@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "../components/landing/theme.css";
 
 /* Geist Mono only styles the legacy map coordinates. Declared without preload so it downloads only where used. */
 @font-face {
