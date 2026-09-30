@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { headers } from "next/headers";
-import "maplibre-gl/dist/maplibre-gl.css";
 import "./globals.css";
 
-const geistSans = Geist({
+// Geist, subconjunto latino y pesos 400–850 (los que usan la landing y la plataforma).
+// Un solo archivo precargado; ver app/fonts/README.md.
+const geistSans = localFont({
+  src: "./fonts/geist-latin-400-850.woff2",
+  weight: "400 850",
+  style: "normal",
+  display: "swap",
   variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  // "Geist Fallback" is declared in globals.css with metrics matched to Geist to avoid layout shift.
+  fallback: ["Geist Fallback", "Arial", "sans-serif"],
 });
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -21,7 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const imageUrl = new URL("/og.png", `${protocol}://${host}`).toString();
 
   return {
-    title: "BOND | Prefactibilidad territorial energética",
+    title: { default: "BOND | Prefactibilidad territorial energética", template: "%s | BOND" },
     description:
       "Plataforma de prefactibilidad territorial para evaluar, comparar y justificar sitios energéticos en Colombia.",
     icons: {
@@ -45,7 +46,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="es">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>{children}</body>
+      <body className={geistSans.variable}>{children}</body>
     </html>
   );
 }

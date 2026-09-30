@@ -1,5 +1,6 @@
-import Studio from "./studio/Studio";
+import { redirect } from "next/navigation";
 
+// La herramienta vive ahora en /plataforma.
 export default function Home() {
-  return <Studio />;
+  redirect("/plataforma");
 }

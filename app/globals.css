@@ -1,5 +1,38 @@
 @import "tailwindcss";
 
+/* Geist Mono only styles the legacy map coordinates. Declared without preload so it downloads only where used. */
+@font-face {
+  font-family: "Geist Mono";
+  src: url("./fonts/geist-mono-latin-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-geist-mono: "Geist Mono", ui-monospace, monospace;
+}
+
+/* Metric-matched fallback for Geist (values from Next's capsize metrics) to avoid layout shift. */
+@font-face {
+  font-family: "Geist Fallback";
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("LiberationSans");
+  size-adjust: 104.76%;
+  ascent-override: 95.94%;
+  descent-override: 28.16%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Geist Fallback";
+  font-weight: 600 900;
+  src: local("Arial Bold"), local("Arial-BoldMT"), local("Liberation Sans Bold"), local("LiberationSans-Bold");
+  size-adjust: 101.88%;
+  ascent-override: 98.65%;
+  descent-override: 28.96%;
+  line-gap-override: 0%;
+}
+
 :root {
   --ink: #15231f;
   --muted: #66736f;
