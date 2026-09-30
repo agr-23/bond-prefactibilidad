@@ -1,0 +1,34 @@
+name: Mejora
+description: Una funcionalidad nueva o un cambio sobre algo que ya existe.
+labels: [enhancement]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options:
+        - Landing (/)
+        - Plataforma (/plataforma)
+        - Datos (public/data y su pipeline)
+        - Metodología
+        - Herramientas de desarrollo
+    validations:
+      required: true
+  - type: textarea
+    id: problema
+    attributes:
+      label: Problema u oportunidad
+      description: Qué necesidad resuelve y para quién.
+    validations:
+      required: true
+  - type: textarea
+    id: propuesta
+    attributes:
+      label: Propuesta
+    validations:
+      required: true
+  - type: textarea
+    id: evidencia
+    attributes:
+      label: Evidencia o fuente
+      description: Si la mejora implica una afirmación de producto o un dato, indique de dónde sale.
