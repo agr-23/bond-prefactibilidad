@@ -49,3 +49,21 @@ test('NASA missing values remain null, not invented reference values',async()=>{
  const previous=globalThis.fetch;globalThis.fetch=async()=>Response.json({header:{fill_value:-999,start:2001,end:2020},properties:{parameter:{ALLSKY_SFC_SW_DWN:{ANN:-999},WS50M:{ANN:4}}},messages:['Informational message']});
  try{const r=await sources.resourcesAt(aoi);assert.equal(r.solar,null);assert.equal(r.wind,4);}finally{globalThis.fetch=previous;}
 });
+test('EPM transformers: nearest five with semaphore inside the EPM network',async()=>{
+ const r=await sources.nearestTransformers(square(-75.60,6.20,-75.58,6.22),asset);
+ assert.ok(r);assert.equal(r.transformers.length,5);
+ assert.ok(r.transformers.every((t,i,all)=>t.km>=0&&(i===0||all[i-1].km<=t.km)));
+ assert.ok(r.transformers.every(t=>['Verde','Amarillo','Naranja','Rojo','Sin dato'].includes(t.power)));
+ assert.equal(r.nearestWithCapacity?.power,'Verde');
+});
+test('EPM transformers: area outside the EPM network returns null, not an empty measurement',async()=>{
+ assert.equal(await sources.nearestTransformers(square(-74.10,4.60,-74.08,4.62),asset),null);
+});
+test('grid metric uses the nearest transformer with capacity, and the municipal average above 5 MW',()=>{
+ const analysis={municipalities:[{areaHa:1,data:{distancia_subestacion_km:40,distancia_via_t1_km:20}}],connection:{transformers:[],nearestWithCapacity:{km:2},source:'t',retrievedAt:'t'}};
+ const grid=p=>engine.scoreProject(p).metrics.find(m=>m.key==='grid');
+ const base={technology:'Solar FV',scenario:{name:'Test',resource:0,grid:100,roads:0},analysis};
+ assert.equal(grid({...base,capacity:1}).score,98);
+ assert.equal(grid({...base,capacity:20}).score,60);
+ assert.equal(grid({...base,analysis:{...analysis,connection:null}}).score,60);
+});

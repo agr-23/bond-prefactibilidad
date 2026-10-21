@@ -1,6 +1,6 @@
 import {identity,body,checkOrigin,HttpError,runtime,listRecords,getRecord,saveRecord,deleteRecord} from '../../../lib/studio/server';
 import {validateArea,intersectMunicipalities,layerIntersections} from '../../../lib/studio/engine';
-import {municipalBoundaries,resourcesAt,DANE,NASA} from '../../../lib/studio/sources';
+import {municipalBoundaries,resourcesAt,nearestTransformers,DANE,NASA,ETER} from '../../../lib/studio/sources';
 import {answer,modelResponse} from '../../../lib/studio/assistant';
 import {defaultScenario} from '../../../lib/studio/types';
 import type {Project,Layer,Scenario,Analysis} from '../../../lib/studio/types';
@@ -48,16 +48,20 @@ export async function POST(request:Request){try{
  }
  if(b.op==='analyze'){
   const p=await getRecord<Project>(owner,b.id,'project');if(!p.geometry)throw new HttpError(400,'Guarda un poligono en el proyecto.');const aoi=validateArea(p.geometry);
-  const municipal=await municipalBoundaries(aoi,async path=>{const assetRequest=new Request(new URL(path,request.url));const assets=runtime().ASSETS;const r=assets?await assets.fetch(assetRequest):process.env.NODE_ENV==='development'?await fetch(assetRequest):null;if(!r?.ok)throw new HttpError(503,'No se pudo cargar el respaldo municipal.');return r.json();});
+  const assetJson=async(path:string)=>{const assetRequest=new Request(new URL(path,request.url));const assets=runtime().ASSETS;const r=assets?await assets.fetch(assetRequest):process.env.NODE_ENV==='development'?await fetch(assetRequest):null;if(!r?.ok)throw new HttpError(503,`No se pudo cargar el recurso local ${path}.`);return r.json();};
+  const municipal=await municipalBoundaries(aoi,assetJson);
   const boundaries=municipal.boundaries;
   const rows=Papa.parse<Record<string,unknown>>(municipalCsv,{header:true,dynamicTyping:true,skipEmptyLines:true}).data;
   const spatial=intersectMunicipalities(aoi,boundaries,rows),warnings=['Los indicadores BOND son promedios de registros municipales; no representan mediciones prediales. Su vigencia y unidades requieren verificacion.','Compatibilidad POT, restricciones oficiales, capacidad de conexion y evaluacion social requieren validacion.','NASA POWER ofrece climatologia de una celda en un punto representativo, no una medicion predial ni un promedio del poligono. Viento a 50 m, sin extrapolacion a altura de buje.'];
   if(municipal.warning)warnings.unshift(municipal.warning);
   let resource=null;try{resource=await resourcesAt(aoi);}catch(e){warnings.push(`${e instanceof Error?e.message:'NASA POWER no respondio.'} El analisis municipal se conserva. Reejecuta para recuperar el recurso.`);}
+  let connection=null;try{connection=await nearestTransformers(aoi,assetJson);}catch(e){warnings.push(`${e instanceof Error?e.message:'No se pudieron leer los transformadores EPM.'} La proximidad a red usa el promedio municipal.`);}
+  if(connection===null&&!warnings.some(w=>w.includes('transformadores')))warnings.push('El area esta fuera de la red de EPM: no hay datos de transformadores ni de cupo. La proximidad a red usa el promedio municipal.');
+  else if(connection){if(!connection.nearestWithCapacity)warnings.push('Ningun transformador de EPM con cupo de potencia (verde) a menos de unos 25 km del area.');if(p.capacity!==null&&p.capacity>5)warnings.push('Los transformadores de EPM son de baja tension (nivel 1) y aplican a autogeneracion y generacion distribuida. Para mas de 5 MW el punto de conexion es una subestacion: la proximidad a red usa el promedio municipal.');warnings.push('El semaforo de cupo de EPM no contempla la generacion proyectada del proyecto; el operador la valida en la solicitud de conexion (CREG 174 de 2021).');}
   if(spatial.coveredPct<99.5)warnings.push(`${(100-spatial.coveredPct).toFixed(1)}% del area queda fuera de la cobertura municipal consultada.`);
   const missing=spatial.municipalities.filter(m=>!m.data);if(missing.length)warnings.push(`${missing.length} municipios no tienen coincidencia por nombre y departamento en la base BOND.`);
   const layers=await listRecords<Layer>(owner,'layer');
-  const analysis:Analysis={...spatial,version:'2.1',boundaryMode:municipal.mode,createdAt:new Date().toISOString(),resource,warnings,layerHits:layerIntersections(aoi,layers),sources:[{label:'DANE MGN 2024',url:DANE,detail:municipal.detail},{label:'Base municipal BOND',url:'/data/municipios_prefactibilidad.csv',detail:'CSV aportado, 913 grupos municipales. Union por nombre y departamento; codigos y coordenadas originales no usados para el cruce.'},{label:'NASA POWER',url:resource?.url??NASA,detail:resource?`Climatologia ${resource.period}; punto representativo; viento a 50 m; unidades del proveedor.`:'Consulta no disponible.'}]};
+  const analysis:Analysis={...spatial,version:'2.2',boundaryMode:municipal.mode,createdAt:new Date().toISOString(),resource,connection,warnings,layerHits:layerIntersections(aoi,layers),sources:[{label:'DANE MGN 2024',url:DANE,detail:municipal.detail},{label:'Base municipal BOND',url:'/data/municipios_prefactibilidad.csv',detail:'CSV aportado, 913 grupos municipales. Union por nombre y departamento; codigos y coordenadas originales no usados para el cruce.'},{label:'NASA POWER',url:resource?.url??NASA,detail:resource?`Climatologia ${resource.period}; punto representativo; viento a 50 m; unidades del proveedor.`:'Consulta no disponible.'},{label:'EPM ETER, semaforo de transformadores',url:ETER,detail:connection?`${connection.source}. Descarga del ${connection.retrievedAt}; distancia al borde del area.`:'Sin cobertura de la red de EPM para esta area.'}]};
   return json(await saveRecord(owner,'project',{...p,analysis},p.revision));
  }
  if(b.op==='chat'){
