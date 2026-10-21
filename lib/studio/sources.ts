@@ -155,3 +155,45 @@ export async function roadAccess(aoi:Area,radiusM=8000):Promise<import('./types'
  }catch{/* la ruta es opcional; se conservan las distancias de Overpass */}
  return {nearest,nearestMajor,route,source:'OpenStreetMap (Overpass) y ruta OSRM',retrievedAt:new Date().toISOString().slice(0,10)};
 }
+export const UPRA='https://www.datos.gov.co/resource/rttb-pk7n.json';
+// Codigos de cod_precio que no son un precio (cuerpo de agua, no suelo, zona urbana, sin valor).
+const NO_PRICE=new Set(['CA','NS','ZU','SI']);
+function parseRange(label:string):[number,number|null]|null{
+ const nums=(label.match(/\d+(?:[.,]\d+)?/g)??[]).map(n=>Number(n.replace(',','.')));
+ if(/menor/i.test(label))return [0,nums[0]??null];
+ if(nums.length>=2)return [nums[0],nums[1]];
+ if(nums.length===1)return [nums[0],null];
+ return null;
+}
+// Costo de la tierra rural (UPRA) para los municipios del area. Informativo; solo 13 departamentos tienen mapa. null si ninguno tiene dato.
+export async function landPrice(municipalities:{code:string;name:string;share:number}[]):Promise<import('./types').LandPrice|null>{
+ const codes=[...new Set(municipalities.map(m=>m.code).filter(c=>/^\d{5}$/.test(c)))];
+ if(!codes.length)return null;
+ const inList=codes.map(c=>`'${c}'`).join(',');
+ const params=new URLSearchParams({'$select':'cod_dane_m,municipio,rango_prec,cod_precio,sum(area_ha) as ha','$where':`cod_dane_m in(${inList})`,'$group':'cod_dane_m,municipio,rango_prec,cod_precio','$limit':'2000'});
+ const r=await fetch(`${UPRA}?${params}`,{headers:{'User-Agent':'BOND-prefactibilidad/1.0'},signal:AbortSignal.timeout(20000)});
+ if(!r.ok)throw new Error(`UPRA (datos.gov.co) no disponible (${r.status}).`);
+ const rows=await r.json() as any;
+ if(!Array.isArray(rows))throw new Error('UPRA devolvió una respuesta inesperada.');
+ const byCode=new Map<string,any[]>();
+ for(const row of rows){const code=String(row.cod_dane_m);if(!byCode.has(code))byCode.set(code,[]);byCode.get(code)!.push(row);}
+ const out:import('./types').LandMunicipality[]=[];
+ for(const m of municipalities){
+  const rowsFor=byCode.get(m.code);if(!rowsFor)continue;
+  const priced=rowsFor.filter(x=>!NO_PRICE.has(String(x.cod_precio).replace('.','')));
+  if(!priced.length){out.push({code:m.code,name:m.name,dominantRange:null,minMillon:null,maxMillon:null,ha:0});continue;}
+  const withHa=priced.map(x=>({ha:Number(x.ha)||0,label:String(x.rango_prec),range:parseRange(String(x.rango_prec))})).filter(x=>x.range);
+  if(!withHa.length){out.push({code:m.code,name:m.name,dominantRange:null,minMillon:null,maxMillon:null,ha:0});continue;}
+  const dominant=withHa.reduce((a,b)=>b.ha>a.ha?b:a);
+  const mins=withHa.map(x=>x.range![0]),maxs=withHa.map(x=>x.range![1]??x.range![0]);
+  out.push({code:m.code,name:m.name,dominantRange:dominant.label,minMillon:Math.min(...mins),maxMillon:Math.max(...maxs),ha:Math.round(withHa.reduce((s,x)=>s+x.ha,0))});
+ }
+ const priced=out.filter(m=>m.dominantRange);
+ if(!priced.length)return null;
+ // Valor tipico ponderado por la participacion del municipio en el area, usando el punto medio del rango dominante (millones/ha -> $/m2 = millones*100).
+ let wsum=0,wtot=0;
+ for(const m of priced){const share=municipalities.find(x=>x.code===m.code)?.share??0;const r=parseRange(m.dominantRange!);if(!r)continue;const mid=r[1]!=null?(r[0]+r[1])/2:r[0];wsum+=mid*100*share;wtot+=share;}
+ const typicalCopM2=wtot?Math.round(wsum/wtot):null;
+ const spanLo=Math.min(...priced.map(m=>m.minMillon!))*100,spanHi=Math.max(...priced.map(m=>m.maxMillon!))*100;
+ return {municipalities:out,typicalCopM2,spanCopM2:[Math.round(spanLo),Math.round(spanHi)],source:'UPRA, precios comerciales de tierra rural agropecuaria (datos.gov.co)',retrievedAt:new Date().toISOString().slice(0,10)};
+}

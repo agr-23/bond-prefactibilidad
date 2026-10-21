@@ -114,3 +114,29 @@ test('road access: all Overpass endpoints down throws, so the route degrades to 
  globalThis.fetch=async(url)=>String(url).includes('interpreter')?new Response('busy',{status:504}):Response.json({code:'Ok',routes:[]});
  try{await assert.rejects(()=>sources.roadAccess(square(-75.872,6.518,-75.868,6.522)),/Overpass/);}finally{globalThis.fetch=previous;}
 });
+test('land price: dominant range, excludes non-price codes, weights the typical value by area share',async()=>{
+ const soda=[
+  {cod_dane_m:'05264',municipio:'Entrerrios',rango_prec:'Mayor a 50 - hasta 60',cod_precio:'12',ha:'13072'},
+  {cod_dane_m:'05264',municipio:'Entrerrios',rango_prec:'Mayor a 5 - hasta 8',cod_precio:'5',ha:'3220'},
+  {cod_dane_m:'05264',municipio:'Entrerrios',rango_prec:'CA',cod_precio:'CA',ha:'552'},
+  {cod_dane_m:'05861',municipio:'Venecia',rango_prec:'Mayor a 70 - hasta 80',cod_precio:'14',ha:'5015'},
+ ];
+ const previous=globalThis.fetch;
+ globalThis.fetch=async()=>Response.json(soda);
+ try{
+  const r=await sources.landPrice([{code:'05264',name:'Entrerrios',share:60},{code:'05861',name:'Venecia',share:40}]);
+  const e=r.municipalities.find(m=>m.code==='05264');
+  assert.equal(e.dominantRange,'Mayor a 50 - hasta 60');assert.equal(e.minMillon,5);assert.equal(e.maxMillon,60);
+  // 55*100*0.6 + 75*100*0.4 = 3300 + 3000 = 6300
+  assert.equal(r.typicalCopM2,6300);
+  assert.deepEqual(r.spanCopM2,[500,8000]);
+ }finally{globalThis.fetch=previous;}
+});
+test('land price: municipalities without UPRA coverage return null, not a fabricated value',async()=>{
+ const previous=globalThis.fetch;globalThis.fetch=async()=>Response.json([]);
+ try{assert.equal(await sources.landPrice([{code:'91001',name:'Leticia',share:100}]),null);}finally{globalThis.fetch=previous;}
+});
+test('land price: a datos.gov.co error degrades to a thrown error, caught by the route',async()=>{
+ const previous=globalThis.fetch;globalThis.fetch=async()=>new Response('',{status:500});
+ try{await assert.rejects(()=>sources.landPrice([{code:'05264',name:'Entrerrios',share:100}]),/UPRA/);}finally{globalThis.fetch=previous;}
+});

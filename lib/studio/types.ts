@@ -12,7 +12,10 @@ export type Environment = {layers:EnvLayer[];bufferKm:number;source:string;retri
 // Acceso vial desde un punto representativo del area (OpenStreetMap + OSRM).
 export type Road = {type:string;typeLabel:string;name:string;surface:string|null;km:number};
 export type RoadAccess = {nearest:Road;nearestMajor:Road|null;route:{km:number;min:number}|null;source:string;retrievedAt:string};
-export type Analysis = {version:string;boundaryMode?:'live'|'backup';createdAt:string;areaHa:number;municipalities:MunicipalHit[];coveredPct:number;overlaps:FeatureCollection;resource:Resource|null;connection?:Connection|null;environment?:Environment|null;roads?:RoadAccess|null;warnings:string[];sources:{label:string;url:string;detail:string}[];layerHits:{id:string;name:string;count:number;role:string}[]};
+// Costo de la tierra rural (UPRA, rangos por hectarea). Informativo, no entra al indice.
+export type LandMunicipality = {code:string;name:string;dominantRange:string|null;minMillon:number|null;maxMillon:number|null;ha:number};
+export type LandPrice = {municipalities:LandMunicipality[];typicalCopM2:number|null;spanCopM2:[number,number]|null;source:string;retrievedAt:string};
+export type Analysis = {version:string;boundaryMode?:'live'|'backup';createdAt:string;areaHa:number;municipalities:MunicipalHit[];coveredPct:number;overlaps:FeatureCollection;resource:Resource|null;connection?:Connection|null;environment?:Environment|null;roads?:RoadAccess|null;land?:LandPrice|null;warnings:string[];sources:{label:string;url:string;detail:string}[];layerHits:{id:string;name:string;count:number;role:string}[]};
 export type Scenario = {name:string;resource:number;grid:number;roads:number};
 export const defaultScenario:Scenario={name:'Balanceado',resource:50,grid:30,roads:20};
 export type Project={id:string;name:string;technology:string;capacity:number|null;geometry:Area|null;analysis:Analysis|null;scenario:Scenario;createdAt:string;updatedAt:string;revision:number};
