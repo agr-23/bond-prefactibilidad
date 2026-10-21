@@ -6,7 +6,10 @@ export type Resource = {solar:number|null;wind:number|null;temperature:number|nu
 export type Transformer = {lon:number;lat:number;km:number;power:string;energy:string;kva:number|null;municipality:string;substation:string;level:number|null};
 // Transformadores de distribucion de EPM (ETER) mas cercanos al area; null fuera de la red de EPM.
 export type Connection = {transformers:Transformer[];nearestWithCapacity:Transformer|null;source:string;retrievedAt:string};
-export type Analysis = {version:string;boundaryMode?:'live'|'backup';createdAt:string;areaHa:number;municipalities:MunicipalHit[];coveredPct:number;overlaps:FeatureCollection;resource:Resource|null;connection?:Connection|null;warnings:string[];sources:{label:string;url:string;detail:string}[];layerHits:{id:string;name:string;count:number;role:string}[]};
+// Restricciones ambientales cercanas al area (MinAmbiente). intersects: el area toca la figura; nearestKm: distancia al borde, null si no hay ninguna en el radio consultado.
+export type EnvLayer = {key:string;label:string;status:'ok'|'error';intersects:boolean;nearestName:string|null;nearestKm:number|null;note?:string};
+export type Environment = {layers:EnvLayer[];bufferKm:number;source:string;retrievedAt:string};
+export type Analysis = {version:string;boundaryMode?:'live'|'backup';createdAt:string;areaHa:number;municipalities:MunicipalHit[];coveredPct:number;overlaps:FeatureCollection;resource:Resource|null;connection?:Connection|null;environment?:Environment|null;warnings:string[];sources:{label:string;url:string;detail:string}[];layerHits:{id:string;name:string;count:number;role:string}[]};
 export type Scenario = {name:string;resource:number;grid:number;roads:number};
 export const defaultScenario:Scenario={name:'Balanceado',resource:50,grid:30,roads:20};
 export type Project={id:string;name:string;technology:string;capacity:number|null;geometry:Area|null;analysis:Analysis|null;scenario:Scenario;createdAt:string;updatedAt:string;revision:number};

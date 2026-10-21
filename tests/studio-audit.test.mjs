@@ -67,3 +67,24 @@ test('grid metric uses the nearest transformer with capacity, and the municipal 
  assert.equal(grid({...base,capacity:20}).score,60);
  assert.equal(grid({...base,analysis:{...analysis,connection:null}}).score,60);
 });
+test('environmental constraints: intersection, distance and per-layer degradation',async()=>{
+ const box=f=>({type:'FeatureCollection',features:[{type:'Feature',properties:f.props,geometry:{type:'Polygon',coordinates:[[[-75.3,5.6],[-75.1,5.6],[-75.1,5.8],[-75.3,5.8],[-75.3,5.6]]]}}]});
+ const previous=globalThis.fetch;
+ globalThis.fetch=async(url)=>{
+  if(url.includes('OTL_Paramo'))return Response.json(box({props:{uab_nombre_paramo:'Sonsón'}}));
+  if(url.includes('OTL_Humedal_RAMSAR'))return new Response('',{status:503});
+  return Response.json({type:'FeatureCollection',features:[]});
+ };
+ try{
+  const inside=await sources.environmentalConstraints(square(-75.25,5.68,-75.24,5.69));
+  const paramo=inside.layers.find(l=>l.key==='paramo');
+  assert.equal(paramo.intersects,true);assert.equal(paramo.nearestKm,0);assert.match(paramo.nearestName,/Sonsón/);
+  const ramsar=inside.layers.find(l=>l.key==='ramsar');
+  assert.equal(ramsar.status,'error');assert.equal(ramsar.intersects,false);
+  const ley2=inside.layers.find(l=>l.key==='ley2');
+  assert.equal(ley2.status,'ok');assert.equal(ley2.nearestKm,null);
+  const outside=await sources.environmentalConstraints(square(-75.0,5.0,-74.99,5.01));
+  assert.equal(outside.layers.find(l=>l.key==='paramo').intersects,false);
+  assert.ok(outside.layers.find(l=>l.key==='paramo').nearestKm>0);
+ }finally{globalThis.fetch=previous;}
+});

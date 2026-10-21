@@ -80,3 +80,39 @@ export async function nearestTransformers(aoi:Area,assetJson:(path:string)=>Prom
  }
  return {transformers:best,nearestWithCapacity:green,source:index.source,retrievedAt:index.retrievedAt};
 }
+export const MINAMBIENTE='https://geo.minambiente.gov.co/server/rest/services/OTL';
+// Codigos de uab_categoria de OTL_Area_Protegida (dominio del servicio) a etiqueta legible.
+const AP_CATEGORIA:Record<number,string>={3:'Via Parque (PNN)',4:'Parque Natural Regional',5:'Area Natural Unica (PNN)',6:'Distrito de Manejo Integrado',7:'Reserva Natural de la Sociedad Civil',8:'Reserva Forestal Protectora',9:'Santuario de Flora (PNN)',10:'Reserva Natural (PNN)',11:'Distrito de Conservacion de Suelos',12:'Area de Recreacion',13:'Santuario de Flora y Fauna (PNN)',14:'Parque Nacional (PNN)',15:'Santuario de Fauna (PNN)'};
+const ENV_LAYERS=[
+ {key:'paramo',label:'Paramo',service:'OTL_Paramo',fields:'uab_nombre_paramo',name:(p:any)=>p.uab_nombre_paramo?`Paramo ${p.uab_nombre_paramo}`:'Paramo'},
+ {key:'protegida',label:'Area protegida (RUNAP)',service:'OTL_Area_Protegida',fields:'uab_nombre_area_protegida,uab_categoria',name:(p:any)=>[p.uab_nombre_area_protegida,AP_CATEGORIA[p.uab_categoria]].filter(Boolean).join(' - ')||'Area protegida'},
+ {key:'ramsar',label:'Humedal Ramsar',service:'OTL_Humedal_RAMSAR',fields:'etiqueta',name:(p:any)=>p.etiqueta?`Humedal ${p.etiqueta}`:'Humedal Ramsar'},
+ {key:'ley2',label:'Reserva Forestal de Ley 2.a',service:'OTL_Reserva_Forestal_Ley_2da',fields:'uab_tipo',name:()=>'Reserva Forestal de Ley 2.a de 1959'},
+] as const;
+async function envLayer(aoi:Area,box:number[],cfg:(typeof ENV_LAYERS)[number],point:(f:Area)=>any){
+ const {booleanIntersects,pointToPolygonDistance}=await import('@turf/turf');
+ const params=new URLSearchParams({geometry:JSON.stringify({xmin:box[0],ymin:box[1],xmax:box[2],ymax:box[3],spatialReference:{wkid:4326}}),geometryType:'esriGeometryEnvelope',inSR:'4326',outSR:'4326',spatialRel:'esriSpatialRelIntersects',where:'1=1',outFields:cfg.fields,returnGeometry:'true',f:'geojson'});
+ const r=await fetch(`${MINAMBIENTE}/${cfg.service}/MapServer/0/query?${params}`,{signal:AbortSignal.timeout(20000)});
+ if(!r.ok)throw new Error(`MinAmbiente (${cfg.label}) no disponible (${r.status}).`);
+ const data=await r.json() as any;
+ if(data.error)throw new Error(`MinAmbiente (${cfg.label}) no resolvio la consulta.`);
+ if(data.type!=='FeatureCollection'||!Array.isArray(data.features))throw new Error(`MinAmbiente (${cfg.label}) devolvio una respuesta inesperada.`);
+ const pt=point(aoi);let intersects=false,nearestName:string|null=null,nearestKm:number|null=null;
+ for(const f of data.features){
+  if(!f.geometry)continue;
+  const touch=booleanIntersects(aoi,f);
+  const km=touch?0:pointToPolygonDistance(pt,f,{units:'kilometers'});
+  if(touch)intersects=true;
+  if(nearestKm===null||km<nearestKm){nearestKm=km;nearestName=cfg.name(f.properties??{});}
+ }
+ return {key:cfg.key,label:cfg.label,status:'ok' as const,intersects,nearestName,nearestKm};
+}
+// Restricciones ambientales cercanas al area (MinAmbiente). Degrada por capa: si una fuente falla, esa capa queda en error y las demas siguen.
+export async function environmentalConstraints(aoi:Area):Promise<import('./types').Environment>{
+ const {bbox,pointOnFeature}=await import('@turf/turf');
+ const b=bbox(aoi),deg=0.2,box=[b[0]-deg,b[1]-deg,b[2]+deg,b[3]+deg];
+ const point=(f:Area)=>pointOnFeature(f);
+ const results=await Promise.allSettled(ENV_LAYERS.map(cfg=>envLayer(aoi,box,cfg,point)));
+ const layers=results.map((res,i)=>res.status==='fulfilled'?res.value:{key:ENV_LAYERS[i].key,label:ENV_LAYERS[i].label,status:'error' as const,intersects:false,nearestName:null,nearestKm:null,note:res.reason instanceof Error?res.reason.message:'Consulta fallida.'});
+ return {layers,bufferKm:Math.round(deg*111),source:'MinAmbiente (OTL): paramos, areas protegidas RUNAP, humedales Ramsar y reservas de Ley 2.a',retrievedAt:new Date().toISOString().slice(0,10)};
+}
