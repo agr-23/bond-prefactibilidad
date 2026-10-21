@@ -116,3 +116,42 @@ export async function environmentalConstraints(aoi:Area):Promise<import('./types
  const layers=results.map((res,i)=>res.status==='fulfilled'?res.value:{key:ENV_LAYERS[i].key,label:ENV_LAYERS[i].label,status:'error' as const,intersects:false,nearestName:null,nearestKm:null,note:res.reason instanceof Error?res.reason.message:'Consulta fallida.'});
  return {layers,bufferKm:Math.round(deg*111),source:'MinAmbiente (OTL): paramos, areas protegidas RUNAP, humedales Ramsar y reservas de Ley 2.a',retrievedAt:new Date().toISOString().slice(0,10)};
 }
+export const OVERPASS=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
+export const OSRM='https://router.project-osrm.org';
+const OSM_UA='BOND-prefactibilidad/1.0 (prefactibilidad energetica; +https://github.com/agr-23/bond-prefactibilidad)';
+const HIGHWAY_LABEL:Record<string,string>={motorway:'Autopista',trunk:'Vía principal (troncal)',primary:'Vía primaria',secondary:'Vía secundaria',tertiary:'Vía terciaria',unclassified:'Vía rural',residential:'Vía urbana',track:'Trocha o camino'};
+const MAJOR=new Set(['motorway','trunk','primary','secondary']);
+function surfaceLabel(s:string|undefined):string|null{if(!s)return null;if(/(^|;)(paved|asphalt|concrete|chipseal|paving_stones)/.test(s))return 'Pavimentada';if(/(unpaved|gravel|dirt|ground|earth|sand|fine_gravel|compacted)/.test(s))return 'Sin pavimentar';return s;}
+// Acceso vial desde un punto representativo del area, con OpenStreetMap (Overpass) y OSRM.
+// Servidores publicos con limite de uso; para produccion conviene Overpass/OSRM propios o un proveedor con clave.
+export async function roadAccess(aoi:Area,radiusM=8000):Promise<import('./types').RoadAccess|null>{
+ const {pointOnFeature,lineString,pointToLineDistance,distance,point}=await import('@turf/turf');
+ const c=pointOnFeature(aoi).geometry.coordinates,lon=c[0],lat=c[1];
+ const query=`[out:json][timeout:25];way(around:${radiusM},${lat},${lon})[highway~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|track)$"];out tags geom 200;`;
+ let data:any=null,lastError='';
+ for(const endpoint of OVERPASS){
+  try{
+   const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','User-Agent':OSM_UA,'Accept':'application/json'},body:'data='+encodeURIComponent(query),signal:AbortSignal.timeout(15000)});
+   if(!r.ok){lastError=`${r.status}`;continue;}
+   data=JSON.parse(await r.text());break;
+  }catch(e){lastError=e instanceof Error?e.message:'error';}
+ }
+ if(!data)throw new Error(`OpenStreetMap (Overpass) no disponible (${lastError}).`);
+ const ways=(data.elements??[]).filter((w:any)=>Array.isArray(w.geometry)&&w.geometry.length>1);
+ if(!ways.length)return null;
+ const here=point([lon,lat]);
+ const measured=ways.map((w:any)=>{const line=lineString(w.geometry.map((p:any)=>[p.lon,p.lat]));const km=pointToLineDistance(here,line,{units:'kilometers'});const type=w.tags?.highway as string;return {type,typeLabel:HIGHWAY_LABEL[type]??type,name:w.tags?.name||w.tags?.ref||'Sin nombre',surface:surfaceLabel(w.tags?.surface),km,geometry:w.geometry as {lat:number;lon:number}[]};}).sort((a:any,b:any)=>a.km-b.km);
+ const strip=(m:any)=>({type:m.type,typeLabel:m.typeLabel,name:m.name,surface:m.surface,km:m.km});
+ const nearest=strip(measured[0]);
+ const majorHit=measured.find((m:any)=>MAJOR.has(m.type))??null;
+ const nearestMajor=majorHit?strip(majorHit):null;
+ let route:{km:number;min:number}|null=null;
+ // Ruta en carro hasta el vertice mas cercano de la via principal (o la via mas cercana si no hay principal).
+ const target=majorHit??measured[0];
+ const dest=target.geometry.reduce((best:any,p:any)=>{const d=distance(here,point([p.lon,p.lat]),{units:'kilometers'});return !best||d<best.d?{d,p}:best;},null as any).p;
+ try{
+  const rr=await fetch(`${OSRM}/route/v1/driving/${lon},${lat};${dest.lon},${dest.lat}?overview=false&alternatives=false`,{headers:{'User-Agent':OSM_UA},signal:AbortSignal.timeout(15000)});
+  if(rr.ok){const rd=await rr.json() as any;const rt=rd.routes?.[0];if(rd.code==='Ok'&&rt)route={km:rt.distance/1000,min:rt.duration/60};}
+ }catch{/* la ruta es opcional; se conservan las distancias de Overpass */}
+ return {nearest,nearestMajor,route,source:'OpenStreetMap (Overpass) y ruta OSRM',retrievedAt:new Date().toISOString().slice(0,10)};
+}

@@ -88,3 +88,29 @@ test('environmental constraints: intersection, distance and per-layer degradatio
   assert.ok(outside.layers.find(l=>l.key==='paramo').nearestKm>0);
  }finally{globalThis.fetch=previous;}
 });
+const overpassFixture=await fs.readFile('tests/fixtures-overpass.json','utf8');
+test('road access: nearest road, major road, surface and car route from real Overpass data',async()=>{
+ const previous=globalThis.fetch;
+ globalThis.fetch=async(url)=>String(url).includes('interpreter')?new Response(overpassFixture,{status:200}):Response.json({code:'Ok',routes:[{distance:22900,duration:3120}]});
+ try{
+  const r=await sources.roadAccess(square(-75.872,6.518,-75.868,6.522));
+  assert.ok(r.nearest.km<1);assert.ok(r.nearest.typeLabel);
+  assert.equal(r.nearestMajor.type,'trunk');
+  assert.ok(Math.abs(r.route.km-22.9)<0.01&&Math.abs(r.route.min-52)<0.1);
+ }finally{globalThis.fetch=previous;}
+});
+test('road access: fails over to the next Overpass endpoint when the first is saturated',async()=>{
+ const previous=globalThis.fetch;let calls=0;
+ globalThis.fetch=async(url)=>{if(String(url).includes('interpreter')){calls++;return calls===1?new Response('server busy',{status:504}):new Response(overpassFixture,{status:200});}return Response.json({code:'Ok',routes:[{distance:1000,duration:120}]});};
+ try{const r=await sources.roadAccess(square(-75.872,6.518,-75.868,6.522));assert.ok(r.nearest);assert.ok(calls>=2);}finally{globalThis.fetch=previous;}
+});
+test('road access: a failed route keeps the Overpass distances',async()=>{
+ const previous=globalThis.fetch;
+ globalThis.fetch=async(url)=>String(url).includes('interpreter')?new Response(overpassFixture,{status:200}):new Response('',{status:500});
+ try{const r=await sources.roadAccess(square(-75.872,6.518,-75.868,6.522));assert.equal(r.route,null);assert.ok(r.nearest.km<1);}finally{globalThis.fetch=previous;}
+});
+test('road access: all Overpass endpoints down throws, so the route degrades to the municipal average',async()=>{
+ const previous=globalThis.fetch;
+ globalThis.fetch=async(url)=>String(url).includes('interpreter')?new Response('busy',{status:504}):Response.json({code:'Ok',routes:[]});
+ try{await assert.rejects(()=>sources.roadAccess(square(-75.872,6.518,-75.868,6.522)),/Overpass/);}finally{globalThis.fetch=previous;}
+});
