@@ -9,10 +9,6 @@ almacenamiento (BESS) o de autogeneración, la cruza con información territoria
 evidencia trazable para decidir qué avanzar, qué verificar y qué descartar antes de invertir
 en estudios, tierra, ingeniería, gestión social y permisos.
 
-> **Estado de `main`.** La landing comercial (`/`), la herramienta en `/plataforma` y el
-> endpoint `/api/contacto` llegan con el pull request de la landing. Hasta que se fusione,
-> `/` sirve la herramienta y `docs/landing-pendientes.md` todavía no existe en `main`.
-
 ## Estado actual
 
 Este repositorio sigue la misma regla que la landing: solo se afirma lo que existe en el
@@ -30,9 +26,19 @@ código o en [`AUDITORIA_BOND.md`](AUDITORIA_BOND.md).
   municipio y un respaldo municipal verificado si el servicio del DANE no responde; recurso
   solar y eólico de NASA POWER en un punto del área; capas propias del usuario, marcadas
   como contexto o restricción.
-- **Índice técnico exploratorio.** Puntaje de 0 a 100 con recurso, distancia a subestación
-  y acceso vial, ponderados por escenario, y su cobertura de evidencia. Un dato faltante no
-  se convierte en cero: se informa y reduce la cobertura.
+- **Medición sobre el punto.** Para un área dentro de la red de EPM (Antioquia), la conexión
+  se mide con los transformadores de EPM (ETER) más cercanos y su cupo de semáforo, en vez
+  del promedio municipal. El acceso vial usa la vía más cercana con su tipo y la ruta en
+  carro (OpenStreetMap y OSRM). Dos dimensiones de contexto nuevas: distancia a páramos,
+  humedales Ramsar, reservas de Ley 2.ª y áreas protegidas (MinAmbiente / RUNAP), que se
+  marca como alerta si el área intersecta alguna; y el rango de precio de la tierra rural de
+  la UPRA por municipio, informativo. Cada fuente trae su origen y fecha, y degrada a
+  "Sin dato" o al promedio municipal fuera de su cobertura; no inventa valores.
+- **Índice técnico exploratorio.** Puntaje de 0 a 100 con recurso, proximidad a la red y
+  acceso vial, ponderados por escenario, y su cobertura de evidencia. La proximidad a la red
+  y el acceso vial usan la medición sobre el punto cuando está disponible, y el promedio
+  municipal en caso contrario. Un dato faltante no se convierte en cero: se informa y reduce
+  la cobertura.
 - **Comparador** de hasta cuatro proyectos.
 - **Entregables.** PDF técnico, Excel de cinco hojas y GeoJSON del área.
 - **Asistente opcional** (Groq u OpenAI) que responde con los resultados del proyecto. Su
