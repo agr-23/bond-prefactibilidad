@@ -1,0 +1,46 @@
+name: Hallazgo de datos
+description: Un dato incorrecto, faltante o inconsistente en public/data o en su pipeline.
+labels: [datos]
+body:
+  - type: input
+    id: archivo
+    attributes:
+      label: Archivo o fuente
+      placeholder: public/data/municipios_prefactibilidad.csv
+    validations:
+      required: true
+  - type: textarea
+    id: registros
+    attributes:
+      label: Registros afectados
+      description: Municipios, departamentos, códigos DIVIPOLA o columnas. Indique cuántos registros se afectan.
+    validations:
+      required: true
+  - type: textarea
+    id: observado
+    attributes:
+      label: Qué se observa
+    validations:
+      required: true
+  - type: textarea
+    id: referencia
+    attributes:
+      label: Qué se esperaba y fuente de referencia
+      description: Por ejemplo, el código DIVIPOLA según el DANE.
+    validations:
+      required: true
+  - type: checkboxes
+    id: impacto
+    attributes:
+      label: Dónde impacta
+      options:
+        - label: Análisis de la plataforma
+        - label: Exportación a Excel
+        - label: Informe PDF
+        - label: Landing
+        - label: CSV descargable
+  - type: textarea
+    id: verificacion
+    attributes:
+      label: Cómo se verificó
+      description: Comando, consulta o procedimiento para reproducir el hallazgo.

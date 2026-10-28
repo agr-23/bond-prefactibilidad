@@ -42,3 +42,12 @@ next-env.d.ts
 /.pnpm-store/
 /outputs/
 /work/
+
+# wrangler: variables y secretos locales
+.dev.vars*
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

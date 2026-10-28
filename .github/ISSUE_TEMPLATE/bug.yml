@@ -1,0 +1,49 @@
+name: Error
+description: Algo no funciona como debería.
+labels: [bug]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Dónde ocurre
+      options:
+        - Landing (/)
+        - Plataforma (/plataforma)
+        - Versión anterior (/legacy)
+        - API (/api/…)
+        - Build, CI o despliegue
+    validations:
+      required: true
+  - type: textarea
+    id: que-paso
+    attributes:
+      label: Qué pasó
+      description: Describa el comportamiento observado. Incluya el mensaje de error si lo hay.
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: Qué se esperaba
+    validations:
+      required: true
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Cómo reproducirlo
+      placeholder: |
+        1. Abrir …
+        2. Hacer clic en …
+        3. Ver …
+    validations:
+      required: true
+  - type: input
+    id: entorno
+    attributes:
+      label: Navegador y dispositivo
+      placeholder: Chrome 130 en Windows 11, Safari en iPhone 15…
+  - type: textarea
+    id: evidencia
+    attributes:
+      label: Capturas o registros
+      description: Sin datos personales ni secretos.
