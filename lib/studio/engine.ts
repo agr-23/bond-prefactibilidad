@@ -41,14 +41,19 @@ export function weightedMetric(hits:MunicipalHit[],key:string){
   for(const h of hits){const v=h.data?.[key];if(typeof v==='number'&&Number.isFinite(v)){sum+=v*h.areaHa;weight+=h.areaHa;}}
   return {value:weight?sum/weight:null,coverage:hits.length?weight/hits.reduce((s,h)=>s+h.areaHa,0)*100:0};
 }
-export function scoreProject(project:Pick<Project,'analysis'|'technology'|'scenario'>){
+export function scoreProject(project:Pick<Project,'analysis'|'technology'|'scenario'>&{capacity?:number|null}){
   const a=project.analysis;if(!a)return null;
   const solar=a.resource?.solar,wind=a.resource?.wind;
   const clamp=(n:number)=>Math.min(100,Math.max(0,n));
   const solarScore=solar==null?null:clamp((solar-3)/3.5*100),windScore=wind==null?null:clamp((wind-2)/10*100);
   const resource=project.technology==='BESS'?null:project.technology==='Eolica'?windScore:project.technology==='Hibrida'?(solarScore!==null&&windScore!==null?(solarScore+windScore)/2:null):solarScore;
-  const grid=weightedMetric(a.municipalities,'distancia_subestacion_km'),roads=weightedMetric(a.municipalities,'distancia_via_t1_km');
-  const metrics=[{key:'resource',label:project.technology==='BESS'?'No aplica (BESS)':project.technology==='Hibrida'?'Solar + viento':project.technology==='Eolica'?'Viento a 50 m':'Recurso solar',score:resource,coverage:resource==null?0:100},{key:'grid',label:'Proximidad a red',score:grid.value==null?null:clamp(100-grid.value),coverage:grid.coverage},{key:'roads',label:'Acceso vial',score:roads.value==null?null:clamp(100-roads.value),coverage:roads.coverage}];
+  // Con transformadores EPM se mide desde el area al transformador con cupo mas cercano; para mas de 5 MW, fuera de EPM o sin cupo cercano, se usa el promedio municipal.
+  const transformer=a.connection?.nearestWithCapacity&&!(project.capacity!=null&&project.capacity>5)?a.connection.nearestWithCapacity:null;
+  const grid=transformer?{value:transformer.km,coverage:100}:weightedMetric(a.municipalities,'distancia_subestacion_km');
+  // Vias: ruta en carro a la via principal si hay; si no, distancia en linea recta a la via principal; si no, promedio municipal.
+  const roadKm=a.roads?.route?a.roads.route.km:a.roads?.nearestMajor?a.roads.nearestMajor.km:null;
+  const roads=roadKm!==null?{value:roadKm,coverage:100}:weightedMetric(a.municipalities,'distancia_via_t1_km');
+  const metrics=[{key:'resource',label:project.technology==='BESS'?'No aplica (BESS)':project.technology==='Hibrida'?'Solar + viento':project.technology==='Eolica'?'Viento a 50 m':'Recurso solar',score:resource,coverage:resource==null?0:100},{key:'grid',label:transformer?'Transformador con cupo (EPM)':'Proximidad a red (municipal)',score:grid.value==null?null:clamp(100-grid.value),coverage:grid.coverage},{key:'roads',label:roadKm!==null?'Acceso vial (OpenStreetMap)':'Acceso vial (municipal)',score:roads.value==null?null:clamp(100-roads.value),coverage:roads.coverage}];
   let sum=0,weights=0,configured=0,coveredWeights=0;
   for(const m of metrics){if(project.technology==='BESS'&&m.key==='resource')continue;const w=project.scenario[m.key as keyof Omit<Scenario,'name'>];configured+=w;if(m.score!==null){sum+=m.score*w;weights+=w;coveredWeights+=w*m.coverage/100;}}
   return {score:weights?sum/weights:null,coverage:configured?coveredWeights/configured*100:0,metrics,decision:'Prefactibilidad integral pendiente'};
