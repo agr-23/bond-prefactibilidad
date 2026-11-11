@@ -292,3 +292,37 @@ export async function peasantReserve(aoi:Area):Promise<import('./types').Overlay
  const layers=results.map((res,i)=>res.status==='fulfilled'?res.value:{key:ZRC_LAYERS[i].key,label:ZRC_LAYERS[i].label,status:'error' as const,intersects:false,nearestName:null,nearestKm:null,note:res.reason instanceof Error?res.reason.message:'Consulta fallida.'});
  return {layers,bufferKm:Math.round(deg*111),source:'ANT (Datos Abiertos): zonas de reserva campesina y territorios campesinos agroalimentarios',retrievedAt:new Date().toISOString().slice(0,10)};
 }
+export const ANM='https://geo.anm.gov.co/webgis/services/ANM/ServiciosGeograficosANM/MapServer/WFSServer';
+// Resume la lista larga de MINERALES a unas pocas palabras clave reconocibles.
+function mineralSummary(raw:string):string{
+ const up=String(raw??'').toUpperCase();
+ const keys=['ORO','PLATA','PLATINO','CARBÓN','CARBON','CALIZA','ARCILLA','CALCÁREO','NÍQUEL','NIQUEL','COBRE','HIERRO','ESMERALDA','MÁRMOL','MARMOL','YESO','SAL','FOSFATO','MATERIALES DE CONSTRUCCIÓN','ARENA','GRAVA','ROCA','CUARZO','FELDESPATO'];
+ const found=[...new Set(keys.filter(k=>up.includes(k)).map(k=>titlecase(k.replace('CARBON','Carbón').replace('NIQUEL','Níquel').replace('MARMOL','Mármol'))))];
+ return found.slice(0,3).join(', ')||'Mineral no especificado';
+}
+// Titulos mineros de la ANM cercanos al area (WFS publico). No se consultan ni se guardan datos del titular (nombre, cedula): solo estado, etapa, mineral y municipio.
+export async function miningTitles(aoi:Area):Promise<import('./types').Mining>{
+ const {bbox,booleanIntersects,pointOnFeature,pointToPolygonDistance}=await import('@turf/turf');
+ const b=bbox(aoi),deg=0.2,box=[b[0]-deg,b[1]-deg,b[2]+deg,b[3]+deg];
+ // El WFS de la ANM usa el recuadro en orden lon,lat con EPSG:4326 (no urn).
+ const params=new URLSearchParams({SERVICE:'WFS',VERSION:'2.0.0',REQUEST:'GetFeature',typeNames:'ANM_ServiciosGeograficosANM:Titulo_Minero',outputFormat:'GEOJSON',srsName:'EPSG:4326',count:'500',bbox:`${box[0]},${box[1]},${box[2]},${box[3]},EPSG:4326`});
+ const r=await fetch(`${ANM}?${params}`,{signal:AbortSignal.timeout(20000)});
+ if(!r.ok)throw new Error(`ANM (titulos mineros) no disponible (${r.status}).`);
+ const data=await r.json() as any;
+ if(!Array.isArray(data.features))throw new Error('ANM (titulos mineros) devolvio una respuesta inesperada.');
+ const pt=pointOnFeature(aoi);
+ let nearest:import('./types').MiningTitle|null=null,insideActive=false;
+ for(const f of data.features){
+  if(!f.geometry)continue;
+  const inside=booleanIntersects(aoi,f);
+  const km=inside?0:pointToPolygonDistance(pt,f,{units:'kilometers'});
+  const p=f.properties??{};
+  const estado=String(p.ESTADO??'').trim()||'Sin dato';
+  if(inside&&/activ/i.test(estado))insideActive=true;
+  if(nearest===null||km<nearest.km){
+   // Solo campos no personales; el nombre y la identificacion del titular se ignoran.
+   nearest={estado,etapa:String(p.ETAPA??'').trim()||'Sin dato',minerals:mineralSummary(p.MINERALES),municipality:titlecase(p.MUNICIPIOS)||'',code:String(p.CODIGO_EXPEDIENTE??'').trim(),km,inside};
+  }
+ }
+ return {nearest,insideActive,count:data.features.length,source:'ANM, catastro minero (titulos mineros), WFS publico',retrievedAt:new Date().toISOString().slice(0,10)};
+}
