@@ -158,3 +158,31 @@ test('prior consultation: ethnic territory intersection and distance degrade per
   assert.equal(outside.layers.find(l=>l.key==='resguardo').intersects,false);
  }finally{globalThis.fetch=previous;}
 });
+test('water resources: esri line distance, polygon inside, and per-layer degradation',async()=>{
+ const esriLine={features:[{geometry:{paths:[[[-75.90,6.52],[-75.90,6.55]]]}}]};
+ const esriPoly={features:[{geometry:{rings:[[[-75.95,6.45],[-75.80,6.45],[-75.80,6.60],[-75.95,6.60],[-75.95,6.45]]]}}]};
+ const previous=globalThis.fetch;
+ globalThis.fetch=async(url)=>{
+  if(url.includes('/2/query'))return Response.json(esriLine);       // drenaje (linea)
+  if(url.includes('/1/query'))return Response.json(esriPoly);       // cuerpo de agua (poligono que cubre el area)
+  if(url.includes('/4/query'))return new Response('',{status:502}); // humedal falla
+  return Response.json({features:[]});
+ };
+ try{
+  const r=await sources.waterResources(square(-75.88,6.515,-75.87,6.525));
+  const dren=r.layers.find(l=>l.key==='drenaje');
+  assert.equal(dren.status,'ok');assert.ok(dren.nearestKm>0&&dren.nearestKm<5);
+  const cuerpo=r.layers.find(l=>l.key==='cuerpo');
+  assert.equal(cuerpo.intersects,true);assert.equal(cuerpo.nearestKm,0);
+  const hum=r.layers.find(l=>l.key==='humedal');
+  assert.equal(hum.status,'error');
+ }finally{globalThis.fetch=previous;}
+});
+test('water resources: retries IGAC before degrading a layer',async()=>{
+ const previous=globalThis.fetch;let drenCalls=0;
+ globalThis.fetch=async(url)=>{
+  if(url.includes('/2/query')){drenCalls++;return drenCalls<2?new Response('',{status:502}):Response.json({features:[{geometry:{paths:[[[-75.90,6.52],[-75.90,6.55]]]}}]});}
+  return Response.json({features:[]});
+ };
+ try{const r=await sources.waterResources(square(-75.88,6.515,-75.87,6.525));assert.equal(r.layers.find(l=>l.key==='drenaje').status,'ok');assert.ok(drenCalls>=2);}finally{globalThis.fetch=previous;}
+});
