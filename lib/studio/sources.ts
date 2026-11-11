@@ -197,3 +197,98 @@ export async function landPrice(municipalities:{code:string;name:string;share:nu
  const spanLo=Math.min(...priced.map(m=>m.minMillon!))*100,spanHi=Math.max(...priced.map(m=>m.maxMillon!))*100;
  return {municipalities:out,typicalCopM2,spanCopM2:[Math.round(spanLo),Math.round(spanHi)],source:'UPRA, precios comerciales de tierra rural agropecuaria (datos.gov.co)',retrievedAt:new Date().toISOString().slice(0,10)};
 }
+export const ANT='https://geoportal.ant.gov.co/servidor/rest/services/DatosAbiertos';
+// Consulta generica de una capa ArcGIS de poligonos por interseccion y distancia al borde desde un punto representativo.
+async function overlayLayer(aoi:Area,box:number[],cfg:{key:string;label:string;query:string;fields:string;name:(p:any)=>string},point:(f:Area)=>any){
+ const {booleanIntersects,pointToPolygonDistance}=await import('@turf/turf');
+ const params=new URLSearchParams({geometry:JSON.stringify({xmin:box[0],ymin:box[1],xmax:box[2],ymax:box[3],spatialReference:{wkid:4326}}),geometryType:'esriGeometryEnvelope',inSR:'4326',outSR:'4326',spatialRel:'esriSpatialRelIntersects',where:'1=1',outFields:cfg.fields,returnGeometry:'true',f:'geojson'});
+ const r=await fetch(`${cfg.query}?${params}`,{signal:AbortSignal.timeout(20000)});
+ if(!r.ok)throw new Error(`${cfg.label}: fuente no disponible (${r.status}).`);
+ const data=await r.json() as any;
+ if(data.error)throw new Error(`${cfg.label}: no resolvio la consulta.`);
+ if(data.type!=='FeatureCollection'||!Array.isArray(data.features))throw new Error(`${cfg.label}: respuesta inesperada.`);
+ const pt=point(aoi);let intersects=false,nearestName:string|null=null,nearestKm:number|null=null;
+ for(const f of data.features){
+  if(!f.geometry)continue;
+  const touch=booleanIntersects(aoi,f);
+  const km=touch?0:pointToPolygonDistance(pt,f,{units:'kilometers'});
+  if(touch)intersects=true;
+  if(nearestKm===null||km<nearestKm){nearestKm=km;nearestName=cfg.name(f.properties??{});}
+ }
+ return {key:cfg.key,label:cfg.label,status:'ok' as const,intersects,nearestName,nearestKm};
+}
+const titlecase=(s:unknown)=>String(s??'').toLowerCase().replace(/(^|[\s(])([\p{L}])/gu,(_,a,b)=>a+b.toUpperCase()).trim();
+const CONSULTA_LAYERS=[
+ {key:'resguardo',label:'Resguardo indigena',query:`${ANT}/Resguardo_Indigena_Formalizado/MapServer/0/query`,fields:'NOMBRE,PUEBLO,MUNICIPIO',name:(p:any)=>`${titlecase(p.NOMBRE)||'Resguardo indigena'}${p.PUEBLO?` (${titlecase(p.PUEBLO)})`:''}`},
+ {key:'consejo',label:'Consejo comunitario (comunidades negras)',query:`${ANT}/Consejo_Comunitario_Titulado/MapServer/0/query`,fields:'NOMBRE,MUNICIPIO',name:(p:any)=>titlecase(p.NOMBRE)||'Consejo comunitario'},
+] as const;
+// Territorios etnicos que disparan consulta previa (ANT, Datos Abiertos): resguardos indigenas y consejos comunitarios.
+// Si el area intersecta alguno, es una senal fuerte de que el proyecto requiere consulta previa.
+export async function priorConsultation(aoi:Area):Promise<import('./types').Overlay>{
+ const {bbox,pointOnFeature}=await import('@turf/turf');
+ const b=bbox(aoi),deg=0.2,box=[b[0]-deg,b[1]-deg,b[2]+deg,b[3]+deg];
+ const point=(f:Area)=>pointOnFeature(f);
+ const results=await Promise.allSettled(CONSULTA_LAYERS.map(cfg=>overlayLayer(aoi,box,cfg,point)));
+ const layers=results.map((res,i)=>res.status==='fulfilled'?res.value:{key:CONSULTA_LAYERS[i].key,label:CONSULTA_LAYERS[i].label,status:'error' as const,intersects:false,nearestName:null,nearestKm:null,note:res.reason instanceof Error?res.reason.message:'Consulta fallida.'});
+ return {layers,bufferKm:Math.round(deg*111),source:'ANT (Datos Abiertos): resguardos indigenas y consejos comunitarios formalizados',retrievedAt:new Date().toISOString().slice(0,10)};
+}
+export const IGAC_AGUA='https://mapas.igac.gov.co/server/rest/services/Dato_Fundamental_Cuerpos_de_Agua_500k/MapServer';
+const AGUA_LAYERS=[
+ {key:'drenaje',id:2,label:'Drenaje (rio o quebrada)',kind:'line' as const},
+ {key:'cuerpo',id:1,label:'Cuerpo de agua',kind:'poly' as const},
+ {key:'humedal',id:4,label:'Humedal',kind:'poly' as const},
+];
+async function waterLayer(aoi:Area,box:number[],cfg:(typeof AGUA_LAYERS)[number],pt:any){
+ const {booleanIntersects,pointToPolygonDistance,pointToLineDistance,lineString}=await import('@turf/turf');
+ // La hidrografia de IGAC solo responde en JSON de Esri, no en GeoJSON; se convierte la geometria para turf.
+ const params=new URLSearchParams({geometry:JSON.stringify({xmin:box[0],ymin:box[1],xmax:box[2],ymax:box[3],spatialReference:{wkid:4326}}),geometryType:'esriGeometryEnvelope',inSR:'4326',outSR:'4326',spatialRel:'esriSpatialRelIntersects',where:'1=1',returnGeometry:'true',f:'json'});
+ // El servidor de IGAC se satura y responde 502 o se cuelga; se reintenta un par de veces antes de degradar.
+ let data:any=null,last='';
+ for(let attempt=0;attempt<3;attempt++){
+  try{
+   const r=await fetch(`${IGAC_AGUA}/${cfg.id}/query?${params}`,{signal:AbortSignal.timeout(12000)});
+   if(!r.ok){last=`no disponible (${r.status})`;continue;}
+   const body=await r.json() as any;
+   if(body.error){last='no resolvio la consulta';continue;}
+   if(!Array.isArray(body.features)){last='respuesta inesperada';continue;}
+   data=body;break;
+  }catch(e){last=e instanceof Error&&e.name==='TimeoutError'?'sin respuesta a tiempo':'error de red';}
+ }
+ if(!data)throw new Error(`IGAC (${cfg.label}) ${last}.`);
+ let intersects=false,nearestKm:number|null=null;
+ for(const f of data.features){
+  const g=f.geometry;if(!g)continue;
+  if(cfg.kind==='line'){
+   for(const path of g.paths??[]){if(path.length<2)continue;const km=pointToLineDistance(pt,lineString(path),{units:'kilometers'});if(nearestKm===null||km<nearestKm)nearestKm=km;}
+  }else{
+   const poly={type:'Feature' as const,properties:{},geometry:{type:'MultiPolygon' as const,coordinates:(g.rings??[]).map((ring:number[][])=>[ring])}};
+   if(!poly.geometry.coordinates.length)continue;
+   const touch=booleanIntersects(aoi,poly);const km=touch?0:pointToPolygonDistance(pt,poly,{units:'kilometers'});
+   if(touch)intersects=true;if(nearestKm===null||km<nearestKm)nearestKm=km;
+  }
+ }
+ return {key:cfg.key,label:cfg.label,status:'ok' as const,intersects,nearestName:null,nearestKm};
+}
+// Recursos hidricos cercanos al area (IGAC, cuerpos de agua 500k): drenajes, cuerpos de agua y humedales.
+// Sirve para la ronda hidrica (franja de exclusion a lado y lado del cauce).
+export async function waterResources(aoi:Area):Promise<import('./types').Overlay>{
+ const {bbox,pointOnFeature}=await import('@turf/turf');
+ const b=bbox(aoi),deg=0.2,box=[b[0]-deg,b[1]-deg,b[2]+deg,b[3]+deg];
+ const pt=pointOnFeature(aoi);
+ const results=await Promise.allSettled(AGUA_LAYERS.map(cfg=>waterLayer(aoi,box,cfg,pt)));
+ const layers=results.map((res,i)=>res.status==='fulfilled'?res.value:{key:AGUA_LAYERS[i].key,label:AGUA_LAYERS[i].label,status:'error' as const,intersects:false,nearestName:null,nearestKm:null,note:res.reason instanceof Error?res.reason.message:'Consulta fallida.'});
+ return {layers,bufferKm:Math.round(deg*111),source:'IGAC, hidrografia (cuerpos de agua 500k): drenajes, cuerpos de agua y humedales',retrievedAt:new Date().toISOString().slice(0,10)};
+}
+const ZRC_LAYERS=[
+ {key:'zrc',label:'Zona de reserva campesina',query:`${ANT}/Zonas_de_Reserva_Campesina_Constituida/MapServer/0/query`,fields:'NOMBRE_ZON,DEPARTAMENTO',name:(p:any)=>titlecase(p.NOMBRE_ZON)||'Zona de reserva campesina'},
+ {key:'tca',label:'Territorio campesino agroalimentario',query:`${ANT}/Territorios_Campesinos_Agroalimentarios/MapServer/0/query`,fields:'TECAM,DEPARTAMENTO',name:(p:any)=>titlecase(p.TECAM)||'Territorio campesino agroalimentario'},
+] as const;
+// Figuras campesinas de ordenamiento del suelo rural (ANT, Datos Abiertos): zonas de reserva campesina y territorios campesinos agroalimentarios. Condicionan el uso del suelo.
+export async function peasantReserve(aoi:Area):Promise<import('./types').Overlay>{
+ const {bbox,pointOnFeature}=await import('@turf/turf');
+ const b=bbox(aoi),deg=0.2,box=[b[0]-deg,b[1]-deg,b[2]+deg,b[3]+deg];
+ const point=(f:Area)=>pointOnFeature(f);
+ const results=await Promise.allSettled(ZRC_LAYERS.map(cfg=>overlayLayer(aoi,box,cfg,point)));
+ const layers=results.map((res,i)=>res.status==='fulfilled'?res.value:{key:ZRC_LAYERS[i].key,label:ZRC_LAYERS[i].label,status:'error' as const,intersects:false,nearestName:null,nearestKm:null,note:res.reason instanceof Error?res.reason.message:'Consulta fallida.'});
+ return {layers,bufferKm:Math.round(deg*111),source:'ANT (Datos Abiertos): zonas de reserva campesina y territorios campesinos agroalimentarios',retrievedAt:new Date().toISOString().slice(0,10)};
+}

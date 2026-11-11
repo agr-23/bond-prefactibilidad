@@ -140,3 +140,60 @@ test('land price: a datos.gov.co error degrades to a thrown error, caught by the
  const previous=globalThis.fetch;globalThis.fetch=async()=>new Response('',{status:500});
  try{await assert.rejects(()=>sources.landPrice([{code:'05264',name:'Entrerrios',share:100}]),/UPRA/);}finally{globalThis.fetch=previous;}
 });
+test('prior consultation: ethnic territory intersection and distance degrade per layer',async()=>{
+ const poly=name=>({type:'FeatureCollection',features:[{type:'Feature',properties:{NOMBRE:name,PUEBLO:'Nasa'},geometry:{type:'Polygon',coordinates:[[[-76.3,2.58],[-76.1,2.58],[-76.1,2.78],[-76.3,2.78],[-76.3,2.58]]]}}]});
+ const previous=globalThis.fetch;
+ globalThis.fetch=async(url)=>{
+  if(url.includes('Resguardo_Indigena'))return Response.json(poly('Resguardo Indígena de Guambia'));
+  if(url.includes('Consejo_Comunitario'))return new Response('',{status:503});
+  return Response.json({type:'FeatureCollection',features:[]});
+ };
+ try{
+  const inside=await sources.priorConsultation(square(-76.25,2.68,-76.24,2.69));
+  const res=inside.layers.find(l=>l.key==='resguardo');
+  assert.equal(res.intersects,true);assert.equal(res.nearestKm,0);assert.match(res.nearestName,/Guambia/);
+  const con=inside.layers.find(l=>l.key==='consejo');
+  assert.equal(con.status,'error');assert.equal(con.intersects,false);
+  const outside=await sources.priorConsultation(square(-74.0,5.0,-73.99,5.01));
+  assert.equal(outside.layers.find(l=>l.key==='resguardo').intersects,false);
+ }finally{globalThis.fetch=previous;}
+});
+test('water resources: esri line distance, polygon inside, and per-layer degradation',async()=>{
+ const esriLine={features:[{geometry:{paths:[[[-75.90,6.52],[-75.90,6.55]]]}}]};
+ const esriPoly={features:[{geometry:{rings:[[[-75.95,6.45],[-75.80,6.45],[-75.80,6.60],[-75.95,6.60],[-75.95,6.45]]]}}]};
+ const previous=globalThis.fetch;
+ globalThis.fetch=async(url)=>{
+  if(url.includes('/2/query'))return Response.json(esriLine);       // drenaje (linea)
+  if(url.includes('/1/query'))return Response.json(esriPoly);       // cuerpo de agua (poligono que cubre el area)
+  if(url.includes('/4/query'))return new Response('',{status:502}); // humedal falla
+  return Response.json({features:[]});
+ };
+ try{
+  const r=await sources.waterResources(square(-75.88,6.515,-75.87,6.525));
+  const dren=r.layers.find(l=>l.key==='drenaje');
+  assert.equal(dren.status,'ok');assert.ok(dren.nearestKm>0&&dren.nearestKm<5);
+  const cuerpo=r.layers.find(l=>l.key==='cuerpo');
+  assert.equal(cuerpo.intersects,true);assert.equal(cuerpo.nearestKm,0);
+  const hum=r.layers.find(l=>l.key==='humedal');
+  assert.equal(hum.status,'error');
+ }finally{globalThis.fetch=previous;}
+});
+test('water resources: retries IGAC before degrading a layer',async()=>{
+ const previous=globalThis.fetch;let drenCalls=0;
+ globalThis.fetch=async(url)=>{
+  if(url.includes('/2/query')){drenCalls++;return drenCalls<2?new Response('',{status:502}):Response.json({features:[{geometry:{paths:[[[-75.90,6.52],[-75.90,6.55]]]}}]});}
+  return Response.json({features:[]});
+ };
+ try{const r=await sources.waterResources(square(-75.88,6.515,-75.87,6.525));assert.equal(r.layers.find(l=>l.key==='drenaje').status,'ok');assert.ok(drenCalls>=2);}finally{globalThis.fetch=previous;}
+});
+test('peasant reserve: intersection and degradation via the shared overlay helper',async()=>{
+ const poly={type:'FeatureCollection',features:[{type:'Feature',properties:{NOMBRE_ZON:'Cabrera'},geometry:{type:'Polygon',coordinates:[[[-74.5,3.9],[-74.4,3.9],[-74.4,4.0],[-74.5,4.0],[-74.5,3.9]]]}}]};
+ const previous=globalThis.fetch;
+ globalThis.fetch=async()=>Response.json(poly);
+ try{
+  const inside=await sources.peasantReserve(square(-74.48,3.95,-74.47,3.96));
+  const l=inside.layers[0];assert.equal(l.intersects,true);assert.match(l.nearestName,/Cabrera/);
+ }finally{globalThis.fetch=previous;}
+ const p2=globalThis.fetch;globalThis.fetch=async()=>new Response('',{status:500});
+ try{const r=await sources.peasantReserve(square(-74.0,5.0,-73.99,5.01));assert.equal(r.layers[0].status,'error');}finally{globalThis.fetch=p2;}
+});
