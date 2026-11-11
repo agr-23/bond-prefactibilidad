@@ -197,3 +197,22 @@ test('peasant reserve: intersection and degradation via the shared overlay helpe
  const p2=globalThis.fetch;globalThis.fetch=async()=>new Response('',{status:500});
  try{const r=await sources.peasantReserve(square(-74.0,5.0,-73.99,5.01));assert.equal(r.layers[0].status,'error');}finally{globalThis.fetch=p2;}
 });
+test('mining titles: nearest active title inside, and no personal data is stored',async()=>{
+ const wfs={type:'FeatureCollection',features:[
+  {type:'Feature',properties:{ESTADO:'Activo',ETAPA:'Explotación',MINERALES:'MINERAL DE ORO, MINERAL DE PLATA',MUNICIPIOS:'REMEDIOS',CODIGO_EXPEDIENTE:'H6336005',NOMBRE_DE_TITULAR:'Fulano de Tal',NUMERO_IDENTIFICACION:'123456'},geometry:{type:'Polygon',coordinates:[[[-74.72,7.00],[-74.66,7.00],[-74.66,7.06],[-74.72,7.06],[-74.72,7.00]]]}},
+  {type:'Feature',properties:{ESTADO:'Terminado',ETAPA:'Exploración',MINERALES:'CARBÓN',MUNICIPIOS:'SEGOVIA',CODIGO_EXPEDIENTE:'X1'},geometry:{type:'Polygon',coordinates:[[[-74.60,7.20],[-74.58,7.20],[-74.58,7.22],[-74.60,7.22],[-74.60,7.20]]]}},
+ ]};
+ const previous=globalThis.fetch;globalThis.fetch=async()=>Response.json(wfs);
+ try{
+  const r=await sources.miningTitles(square(-74.70,7.02,-74.68,7.04));
+  assert.equal(r.insideActive,true);assert.equal(r.nearest.inside,true);assert.equal(r.nearest.km,0);
+  assert.match(r.nearest.minerals,/Oro/);assert.equal(r.nearest.estado,'Activo');
+  // sin datos del titular en la salida
+  const serialized=JSON.stringify(r);
+  assert.ok(!serialized.includes('Fulano')&&!serialized.includes('123456')&&!/TITULAR/i.test(serialized));
+ }finally{globalThis.fetch=previous;}
+});
+test('mining titles: a service error degrades to a thrown error for the route to catch',async()=>{
+ const previous=globalThis.fetch;globalThis.fetch=async()=>new Response('',{status:503});
+ try{await assert.rejects(()=>sources.miningTitles(square(-74.70,7.02,-74.68,7.04)),/ANM/);}finally{globalThis.fetch=previous;}
+});
