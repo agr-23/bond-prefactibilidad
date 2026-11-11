@@ -140,3 +140,21 @@ test('land price: a datos.gov.co error degrades to a thrown error, caught by the
  const previous=globalThis.fetch;globalThis.fetch=async()=>new Response('',{status:500});
  try{await assert.rejects(()=>sources.landPrice([{code:'05264',name:'Entrerrios',share:100}]),/UPRA/);}finally{globalThis.fetch=previous;}
 });
+test('prior consultation: ethnic territory intersection and distance degrade per layer',async()=>{
+ const poly=name=>({type:'FeatureCollection',features:[{type:'Feature',properties:{NOMBRE:name,PUEBLO:'Nasa'},geometry:{type:'Polygon',coordinates:[[[-76.3,2.58],[-76.1,2.58],[-76.1,2.78],[-76.3,2.78],[-76.3,2.58]]]}}]});
+ const previous=globalThis.fetch;
+ globalThis.fetch=async(url)=>{
+  if(url.includes('Resguardo_Indigena'))return Response.json(poly('Resguardo Indígena de Guambia'));
+  if(url.includes('Consejo_Comunitario'))return new Response('',{status:503});
+  return Response.json({type:'FeatureCollection',features:[]});
+ };
+ try{
+  const inside=await sources.priorConsultation(square(-76.25,2.68,-76.24,2.69));
+  const res=inside.layers.find(l=>l.key==='resguardo');
+  assert.equal(res.intersects,true);assert.equal(res.nearestKm,0);assert.match(res.nearestName,/Guambia/);
+  const con=inside.layers.find(l=>l.key==='consejo');
+  assert.equal(con.status,'error');assert.equal(con.intersects,false);
+  const outside=await sources.priorConsultation(square(-74.0,5.0,-73.99,5.01));
+  assert.equal(outside.layers.find(l=>l.key==='resguardo').intersects,false);
+ }finally{globalThis.fetch=previous;}
+});
