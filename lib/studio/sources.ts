@@ -279,3 +279,16 @@ export async function waterResources(aoi:Area):Promise<import('./types').Overlay
  const layers=results.map((res,i)=>res.status==='fulfilled'?res.value:{key:AGUA_LAYERS[i].key,label:AGUA_LAYERS[i].label,status:'error' as const,intersects:false,nearestName:null,nearestKm:null,note:res.reason instanceof Error?res.reason.message:'Consulta fallida.'});
  return {layers,bufferKm:Math.round(deg*111),source:'IGAC, hidrografia (cuerpos de agua 500k): drenajes, cuerpos de agua y humedales',retrievedAt:new Date().toISOString().slice(0,10)};
 }
+const ZRC_LAYERS=[
+ {key:'zrc',label:'Zona de reserva campesina',query:`${ANT}/Zonas_de_Reserva_Campesina_Constituida/MapServer/0/query`,fields:'NOMBRE_ZON,DEPARTAMENTO',name:(p:any)=>titlecase(p.NOMBRE_ZON)||'Zona de reserva campesina'},
+ {key:'tca',label:'Territorio campesino agroalimentario',query:`${ANT}/Territorios_Campesinos_Agroalimentarios/MapServer/0/query`,fields:'TECAM,DEPARTAMENTO',name:(p:any)=>titlecase(p.TECAM)||'Territorio campesino agroalimentario'},
+] as const;
+// Figuras campesinas de ordenamiento del suelo rural (ANT, Datos Abiertos): zonas de reserva campesina y territorios campesinos agroalimentarios. Condicionan el uso del suelo.
+export async function peasantReserve(aoi:Area):Promise<import('./types').Overlay>{
+ const {bbox,pointOnFeature}=await import('@turf/turf');
+ const b=bbox(aoi),deg=0.2,box=[b[0]-deg,b[1]-deg,b[2]+deg,b[3]+deg];
+ const point=(f:Area)=>pointOnFeature(f);
+ const results=await Promise.allSettled(ZRC_LAYERS.map(cfg=>overlayLayer(aoi,box,cfg,point)));
+ const layers=results.map((res,i)=>res.status==='fulfilled'?res.value:{key:ZRC_LAYERS[i].key,label:ZRC_LAYERS[i].label,status:'error' as const,intersects:false,nearestName:null,nearestKm:null,note:res.reason instanceof Error?res.reason.message:'Consulta fallida.'});
+ return {layers,bufferKm:Math.round(deg*111),source:'ANT (Datos Abiertos): zonas de reserva campesina y territorios campesinos agroalimentarios',retrievedAt:new Date().toISOString().slice(0,10)};
+}

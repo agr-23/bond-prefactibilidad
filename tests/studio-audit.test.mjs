@@ -186,3 +186,14 @@ test('water resources: retries IGAC before degrading a layer',async()=>{
  };
  try{const r=await sources.waterResources(square(-75.88,6.515,-75.87,6.525));assert.equal(r.layers.find(l=>l.key==='drenaje').status,'ok');assert.ok(drenCalls>=2);}finally{globalThis.fetch=previous;}
 });
+test('peasant reserve: intersection and degradation via the shared overlay helper',async()=>{
+ const poly={type:'FeatureCollection',features:[{type:'Feature',properties:{NOMBRE_ZON:'Cabrera'},geometry:{type:'Polygon',coordinates:[[[-74.5,3.9],[-74.4,3.9],[-74.4,4.0],[-74.5,4.0],[-74.5,3.9]]]}}]};
+ const previous=globalThis.fetch;
+ globalThis.fetch=async()=>Response.json(poly);
+ try{
+  const inside=await sources.peasantReserve(square(-74.48,3.95,-74.47,3.96));
+  const l=inside.layers[0];assert.equal(l.intersects,true);assert.match(l.nearestName,/Cabrera/);
+ }finally{globalThis.fetch=previous;}
+ const p2=globalThis.fetch;globalThis.fetch=async()=>new Response('',{status:500});
+ try{const r=await sources.peasantReserve(square(-74.0,5.0,-73.99,5.01));assert.equal(r.layers[0].status,'error');}finally{globalThis.fetch=p2;}
+});
