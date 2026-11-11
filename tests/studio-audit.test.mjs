@@ -216,3 +216,11 @@ test('mining titles: a service error degrades to a thrown error for the route to
  const previous=globalThis.fetch;globalThis.fetch=async()=>new Response('',{status:503});
  try{await assert.rejects(()=>sources.miningTitles(square(-74.70,7.02,-74.68,7.04)),/ANM/);}finally{globalThis.fetch=previous;}
 });
+const sinAsset={fields:['name','lat','lon','kv','p95_2026','p95_2027','p100_2026','p100_2027'],source:'UPME',retrievedAt:'2026-11-11',coverage:'427 de 598',substations:[['Aguablanca 115',3.4095,-76.4854,115,68.99,2.66,2.57,1.23],['Bacata 500',4.7988,-74.1781,500,0.1,0.08,0.05,0.04]]};
+test('SIN capacity: nearest substation and its indicative MW; far areas report no SIN nearby',async()=>{
+ const asset=async p=>{assert.ok(p.includes('sin-subestaciones'));return sinAsset;};
+ const near=await sources.sinCapacity(square(-76.49,3.40,-76.47,3.42),asset);
+ assert.equal(near.nearest.name,'Aguablanca 115');assert.ok(near.nearest.km<2);assert.equal(near.nearest.p95_2027,2.66);
+ const far=await sources.sinCapacity(square(-69.94,-4.21,-69.92,-4.19),asset);
+ assert.equal(far.nearest,null);
+});

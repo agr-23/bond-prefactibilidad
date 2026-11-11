@@ -326,3 +326,23 @@ export async function miningTitles(aoi:Area):Promise<import('./types').Mining>{
  }
  return {nearest,insideActive,count:data.features.length,source:'ANM, catastro minero (titulos mineros), WFS publico',retrievedAt:new Date().toISOString().slice(0,10)};
 }
+export const UPME_SIN='https://app.upme.gov.co/Tablero_Capacidad_Barra_26_27/Tablero_Capacidad_Barra_26_27.html';
+// Capacidad indicativa de conexion de generacion al SIN (UPME): subestacion de transmision mas cercana y su cupo en MW.
+// Complementa la conexion de EPM (distribucion, Antioquia): esta es transmision nacional, para proyectos grandes.
+// Valores indicativos de la UPME (no son asignacion ni concepto de viabilidad). Ubicacion de subestaciones por cruce con OpenStreetMap.
+export async function sinCapacity(aoi:Area,assetJson:(path:string)=>Promise<any>):Promise<import('./types').SinConnection>{
+ const {pointOnFeature,distance,point}=await import('@turf/turf');
+ const asset=await assetJson('/data/sin-subestaciones.json');
+ const rows=asset?.substations;
+ if(!Array.isArray(rows))throw new Error('El asset de capacidad del SIN no es valido.');
+ const c=pointOnFeature(aoi).geometry.coordinates,here=point([c[0],c[1]]);
+ let nearest:import('./types').SinSubstation|null=null;
+ for(const r of rows){
+  const [name,lat,lon,kv,p95_2026,p95_2027,p100_2026,p100_2027]=r;
+  const km=distance(here,point([lon,lat]),{units:'kilometers'});
+  if(nearest===null||km<nearest.km)nearest={name,km,kv:kv??null,p95_2026,p95_2027,p100_2026,p100_2027};
+ }
+ // Mas alla de ~80 km no hay red del SIN cerca (zonas no interconectadas o lejos de una subestacion ubicada).
+ if(nearest&&nearest.km>80)nearest=null;
+ return {nearest,source:asset.source,retrievedAt:asset.retrievedAt,coverage:asset.coverage};
+}

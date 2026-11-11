@@ -21,7 +21,10 @@ export type Overlay = {layers:OverlayLayer[];bufferKm:number;source:string;retri
 // Titulos mineros cercanos (ANM). Sin datos del titular: solo estado, etapa, mineral y municipio.
 export type MiningTitle = {estado:string;etapa:string;minerals:string;municipality:string;code:string;km:number;inside:boolean};
 export type Mining = {nearest:MiningTitle|null;insideActive:boolean;count:number;source:string;retrievedAt:string};
-export type Analysis = {version:string;boundaryMode?:'live'|'backup';createdAt:string;areaHa:number;municipalities:MunicipalHit[];coveredPct:number;overlaps:FeatureCollection;resource:Resource|null;connection?:Connection|null;environment?:Environment|null;roads?:RoadAccess|null;land?:LandPrice|null;priorConsultation?:Overlay|null;water?:Overlay|null;peasantReserve?:Overlay|null;mining?:Mining|null;warnings:string[];sources:{label:string;url:string;detail:string}[];layerHits:{id:string;name:string;count:number;role:string}[]};
+// Capacidad indicativa de conexion de generacion al SIN por subestacion (UPME). Ubicacion por cruce con OpenStreetMap.
+export type SinSubstation = {name:string;km:number;kv:number|null;p95_2026:number;p95_2027:number;p100_2026:number;p100_2027:number};
+export type SinConnection = {nearest:SinSubstation|null;source:string;retrievedAt:string;coverage:string};
+export type Analysis = {version:string;boundaryMode?:'live'|'backup';createdAt:string;areaHa:number;municipalities:MunicipalHit[];coveredPct:number;overlaps:FeatureCollection;resource:Resource|null;connection?:Connection|null;environment?:Environment|null;roads?:RoadAccess|null;land?:LandPrice|null;priorConsultation?:Overlay|null;water?:Overlay|null;peasantReserve?:Overlay|null;mining?:Mining|null;sinConnection?:SinConnection|null;warnings:string[];sources:{label:string;url:string;detail:string}[];layerHits:{id:string;name:string;count:number;role:string}[]};
 export type Scenario = {name:string;resource:number;grid:number;roads:number};
 export const defaultScenario:Scenario={name:'Balanceado',resource:50,grid:30,roads:20};
 export type Project={id:string;name:string;technology:string;capacity:number|null;geometry:Area|null;analysis:Analysis|null;scenario:Scenario;createdAt:string;updatedAt:string;revision:number};
