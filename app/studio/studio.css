@@ -18,3 +18,13 @@
 .env-list{font-size:12px;margin:10px 0}.env-list div{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid #eef1ef}.env-list dt{color:var(--s-muted);display:flex;align-items:center;gap:6px}.env-list div[data-in] dt{color:#b3261e;font-weight:600}.env-list div[data-in] dt svg{color:#c2362b}.env-list dd{margin:0;text-align:right;max-width:58%}.env-list dd strong{color:#b3261e}
 .road-list{font-size:12px;margin:10px 0}.road-list div{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid #eef1ef}.road-list dt{color:var(--s-muted)}.road-list dd{margin:0;text-align:right;max-width:62%}.road-list dd small{display:block;color:var(--s-muted)}
 .land-headline{display:flex;align-items:baseline;gap:12px;padding:10px 0}.land-headline strong{font-size:28px;color:#166457;font-weight:600}.land-headline strong small{font-size:13px;color:#75847b}.land-headline span{font-size:12px;color:var(--s-muted)}.land-list{font-size:12px;margin:8px 0}.land-list div{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #eef1ef}.land-list dt{color:var(--s-muted)}.land-list dd{margin:0;text-align:right}
+.tramites .entities{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0 8px}
+.tramites .entity-card{background:white;border:1px solid var(--s-line);border-radius:12px;padding:14px 16px;display:grid;gap:4px;align-content:start}
+.tramites .entity-card strong{font-size:16px;color:#166457}.tramites .entity-card small{color:var(--s-muted);font-size:12px}
+.tramites .entity-card .source-link{margin-top:4px}
+.tramites .ficha{font-size:13px;display:grid;gap:8px;padding:4px 0 8px}
+.tramites .ficha>p{font-size:13px}
+.tramites .ficha-block h4{margin:0 0 3px;font-size:12px;font-weight:650;color:#607269;text-transform:uppercase;letter-spacing:.03em}
+.tramites .ficha-block ul{margin:0;padding-left:18px;display:grid;gap:3px}
+.tramites .ficha-block li{font-size:12px;line-height:1.5}
+@media(max-width:600px){.tramites .entities{grid-template-columns:1fr}}
