@@ -224,3 +224,13 @@ test('SIN capacity: nearest substation and its indicative MW; far areas report n
  const far=await sources.sinCapacity(square(-69.94,-4.21,-69.92,-4.19),asset);
  assert.equal(far.nearest,null);
 });
+test('solar atlas: parses PVOUT, converts GHI to daily, nulls missing values',async()=>{
+ const previous=globalThis.fetch;
+ globalThis.fetch=async()=>Response.json({annual:{data:{PVOUT_csi:1556.2,GHI:1935,DNI:1387.1,OPTA:7,TEMP:20.1,ELE:1488}}});
+ try{
+  const r=await sources.solarAtlas(square(-75.58,6.24,-75.57,6.25));
+  assert.equal(r.pvout,1556.2);assert.ok(Math.abs(r.ghiDaily-1935/365)<1e-9);assert.equal(r.optimalTilt,7);
+ }finally{globalThis.fetch=previous;}
+ const p2=globalThis.fetch;globalThis.fetch=async()=>new Response('',{status:500});
+ try{await assert.rejects(()=>sources.solarAtlas(square(-75.58,6.24,-75.57,6.25)),/Global Solar Atlas/);}finally{globalThis.fetch=p2;}
+});

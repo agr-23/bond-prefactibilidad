@@ -346,3 +346,18 @@ export async function sinCapacity(aoi:Area,assetJson:(path:string)=>Promise<any>
  if(nearest&&nearest.km>80)nearest=null;
  return {nearest,source:asset.source,retrievedAt:asset.retrievedAt,coverage:asset.coverage};
 }
+export const GSA='https://api.globalsolaratlas.info/data/lta';
+// Recurso solar de alta resolucion (Global Solar Atlas, ~250 m) en el punto representativo del area.
+// Complementa a NASA POWER (celda de ~55 km) con produccion fotovoltaica (PVOUT), DNI e inclinacion optima.
+export async function solarAtlas(aoi:Area):Promise<import('./types').SolarAtlas>{
+ const {pointOnFeature}=await import('@turf/turf');
+ const c=pointOnFeature(aoi).geometry.coordinates;
+ const r=await fetch(`${GSA}?loc=${c[1].toFixed(5)},${c[0].toFixed(5)}`,{signal:AbortSignal.timeout(20000)});
+ if(!r.ok)throw new Error(`Global Solar Atlas no disponible (${r.status}).`);
+ const d=await r.json() as any;
+ const a=d?.annual?.data;
+ if(!a)throw new Error('Global Solar Atlas no devolvio datos para este punto.');
+ const num=(x:unknown)=>typeof x==='number'&&Number.isFinite(x)?x:null;
+ const ghi=num(a.GHI);
+ return {pvout:num(a.PVOUT_csi),ghiDaily:ghi!==null?ghi/365:null,dni:num(a.DNI),optimalTilt:num(a.OPTA),tempC:num(a.TEMP),elevation:num(a.ELE),source:'Global Solar Atlas (Solargis), resolucion ~250 m',retrievedAt:new Date().toISOString().slice(0,10)};
+}
