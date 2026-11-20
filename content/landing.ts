@@ -1,9 +1,9 @@
 /**
- * Copy de la landing comercial de BOND (es-CO, trato de "usted").
+ * Copy de la landing comercial de dot. (es-CO, trato de "usted").
  *
  * Todo el texto visible de "/" vive aquí para poder editarlo sin tocar JSX.
  * Regla de honestidad: solo se afirma lo que existe en el código de la
- * plataforma o en AUDITORIA_BOND.md. Lo que aún no existe se marca con una
+ * plataforma o en AUDITORIA_dot.md. Lo que aún no existe se marca con una
  * de las etiquetas de `statusLabels` y nunca se presenta como disponible.
  *
  * Los marcadores `TODO(bond)` requieren datos del equipo antes de publicar.
@@ -57,7 +57,7 @@ export interface DecisionState {
 export interface ExampleShare {
   name: string;
   share: number;
-  /** El municipio no tiene coincidencia en la base de indicadores BOND. */
+  /** El municipio no tiene coincidencia en la base de indicadores dot. */
   missing?: boolean;
 }
 
@@ -254,7 +254,7 @@ export interface LandingContent {
 
 // TODO(bond): reemplazar por los datos legales y de contacto definitivos.
 const org: LandingContent["org"] = {
-  name: "BOND",
+  name: "dot.",
   legalName: "[Razón social]", // TODO(bond): nombre legal
   email: "[correo@dominio.com]", // TODO(bond): correo de contacto
   city: "[Ciudad]", // TODO(bond): ciudad
@@ -265,10 +265,10 @@ const org: LandingContent["org"] = {
 
 export const landing: LandingContent = {
   meta: {
-    title: "BOND | Prefactibilidad territorial energética en Colombia",
+    title: "dot. | Prefactibilidad territorial energética en Colombia",
     description:
       "Cruce su área de interés con la cartografía municipal oficial, el recurso solar y eólico y datos de contexto. Evidencia trazable antes de comprometer capital.",
-    ogTitle: "BOND · Conozca su terreno antes de comprometer capital",
+    ogTitle: "dot. · Conozca su terreno antes de comprometer capital",
     ogDescription:
       "Prefactibilidad territorial para proyectos energéticos en Colombia, con evidencia trazable y límites declarados.",
     siteUrl: "https://www.example.com", // TODO(bond): dominio definitivo (canonical, Open Graph y JSON-LD)
@@ -298,13 +298,13 @@ export const landing: LandingContent = {
     desarrollo: {
       label: "En desarrollo",
       meaning:
-        "Parte del método BOND que hoy aplica el equipo en la revisión metodológica y que la plataforma aún no automatiza.",
+        "Parte del método dot. que hoy aplica el equipo en la revisión metodológica y que la plataforma aún no automatiza.",
     },
   },
 
   nav: {
-    brand: "BOND",
-    homeLabel: "BOND, inicio",
+    brand: "dot.",
+    homeLabel: "dot., inicio",
     skipLink: "Saltar al contenido",
     links: [
       { label: "Cómo funciona", href: "#como-funciona" },
@@ -325,7 +325,7 @@ export const landing: LandingContent = {
     eyebrow: "Prefactibilidad territorial para proyectos energéticos en Colombia",
     titleLines: ["Conozca su terreno", "antes de comprometer capital."],
     lead:
-      "BOND cruza su área con la cartografía municipal oficial, el recurso solar y eólico y datos de contexto, y le muestra la evidencia detrás de cada cifra. Usted decide qué avanzar, qué verificar y qué descartar.",
+      "dot. cruza su área con la cartografía municipal oficial, el recurso solar y eólico y datos de contexto, y le muestra la evidencia detrás de cada cifra. Usted decide qué avanzar, qué verificar y qué descartar.",
     primaryCta: { label: "Solicitar evaluación", href: "#contacto" },
     secondaryCta: { label: "Ver cómo funciona", href: "#como-funciona" },
   },
@@ -356,7 +356,7 @@ export const landing: LandingContent = {
       },
     ],
     closing:
-      "BOND pone la evidencia territorial al principio, cuando cambiar de terreno todavía es barato.",
+      "dot. pone la evidencia territorial al principio, cuando cambiar de terreno todavía es barato.",
   },
 
   howItWorks: {
@@ -372,7 +372,7 @@ export const landing: LandingContent = {
         body:
           "Dibuje el polígono sobre el mapa, busque un municipio por nombre o código DIVIPOLA, o cargue un archivo GeoJSON, KML o Shapefile ZIP.",
         detail:
-          "Antes de analizar, BOND valida la geometría: coordenadas WGS84, sin bordes que se crucen, hasta 10.000 vértices y 20.000 km².",
+          "Antes de analizar, dot. valida la geometría: coordenadas WGS84, sin bordes que se crucen, hasta 10.000 vértices y 20.000 km².",
       },
       {
         title: "Indique los supuestos",
@@ -386,7 +386,7 @@ export const landing: LandingContent = {
         body:
           "El área se cruza con los límites municipales del DANE (MGN 2024) y se calcula qué porcentaje cae en cada municipio. Se consulta el recurso de NASA POWER y se cruzan las capas propias que usted cargue.",
         detail:
-          "Si el servicio del DANE no responde, BOND usa un respaldo municipal verificado e indica su precisión.",
+          "Si el servicio del DANE no responde, dot. usa un respaldo municipal verificado e indica su precisión.",
       },
       {
         title: "Calcule el índice",
@@ -403,7 +403,7 @@ export const landing: LandingContent = {
         body:
           "La plataforma entrega el índice, la cobertura, los municipios cruzados y sus fuentes en PDF técnico, Excel y GeoJSON.",
         detail:
-          "La decisión Go, Conditional Go o No-Go se construye con el equipo BOND en la revisión metodológica.",
+          "La decisión Go, Conditional Go o No-Go se construye con el equipo dot. en la revisión metodológica.",
         pending: {
           status: "desarrollo",
           text: "Emisión automática de la decisión.",
@@ -418,7 +418,7 @@ export const landing: LandingContent = {
       layers: [
         "Límites municipales · DANE",
         "Recurso · NASA POWER",
-        "Indicadores municipales · BOND",
+        "Indicadores municipales · dot.",
         "Capas propias",
       ],
       index: {
@@ -439,7 +439,7 @@ export const landing: LandingContent = {
     eyebrow: "Qué evaluamos",
     title: "Ocho dimensiones sobre el mismo territorio.",
     lead:
-      "La metodología BOND lee el territorio en ocho dimensiones. Cada una indica qué hace hoy la plataforma con ella.",
+      "La metodología dot. lee el territorio en ocho dimensiones. Cada una indica qué hace hoy la plataforma con ella.",
     legendTitle: "Qué significa cada etiqueta",
     items: [
       {
@@ -499,7 +499,7 @@ export const landing: LandingContent = {
     eyebrow: "La decisión",
     title: "Una decisión que se puede explicar.",
     lead:
-      "La metodología BOND expresa la prefactibilidad en tres estados. Cada uno declara la regla que lo produce y la evidencia que lo sostiene.",
+      "La metodología dot. expresa la prefactibilidad en tres estados. Cada uno declara la regla que lo produce y la evidencia que lo sostiene.",
     statesTitle: "Tres estados, una regla cada uno",
     states: [
       {
@@ -520,7 +520,7 @@ export const landing: LandingContent = {
     ],
     automation: {
       status: "desarrollo",
-      text: "Hoy esta decisión la construye el equipo BOND en la revisión metodológica, sobre la evidencia de la plataforma. Su emisión automática está en desarrollo.",
+      text: "Hoy esta decisión la construye el equipo dot. en la revisión metodológica, sobre la evidencia de la plataforma. Su emisión automática está en desarrollo.",
     },
     example: {
       label: "Ejemplo ilustrativo de una prueba interna",
@@ -538,7 +538,7 @@ export const landing: LandingContent = {
         { label: "Irradiación solar", value: 4.99, decimals: 2, unit: "kWh/m²/día" },
         { label: "Viento a 50 m", value: 1.79, decimals: 2, unit: "m/s" },
       ],
-      missingNote: "Cuando la base no tiene dato, BOND lo informa en vez de estimarlo.",
+      missingNote: "Cuando la base no tiene dato, dot. lo informa en vez de estimarlo.",
       footnote:
         "Resultado de una prueba interna de la plataforma. No es una evaluación de ese territorio.",
     },
@@ -592,7 +592,7 @@ export const landing: LandingContent = {
       },
       {
         value: "913",
-        caption: "grupos municipales con indicadores en la base BOND. No cubre todo el país.",
+        caption: "grupos municipales con indicadores en la base dot. No cubre todo el país.",
       },
     ],
     todayTitle: "Lo que la plataforma cruza hoy",
@@ -627,11 +627,11 @@ export const landing: LandingContent = {
       },
       {
         name: "UPME y operadores de red",
-        line: "La ruta de conexión al sistema. BOND usa la distancia a subestación como aproximación; la capacidad disponible no se asume.",
+        line: "La ruta de conexión al sistema. dot. usa la distancia a subestación como aproximación; la capacidad disponible no se asume.",
       },
       {
         name: "Consulta previa",
-        line: "Su procedencia la determina el Ministerio del Interior. BOND no la reduce a un indicador automático.",
+        line: "Su procedencia la determina el Ministerio del Interior. dot. no la reduce a un indicador automático.",
       },
     ],
   },
@@ -718,14 +718,14 @@ export const landing: LandingContent = {
   transparency: {
     id: "transparencia",
     eyebrow: "Transparencia metodológica",
-    title: "Lo que BOND es. Y lo que no.",
-    isTitle: "BOND es",
+    title: "Lo que dot. es. Y lo que no.",
+    isTitle: "dot. es",
     is: [
       "Prefactibilidad exploratoria: una primera lectura del territorio para ordenar qué avanzar, qué verificar y qué descartar.",
       "Evidencia trazable: cada cifra con su fuente, su escala y su fecha.",
       "Un método explícito: pesos, rangos y reglas a la vista en cada reporte.",
     ],
-    isNotTitle: "BOND no es",
+    isNotTitle: "dot. no es",
     isNot: [
       "Un reemplazo de la debida diligencia detallada ni de los conceptos de las autoridades.",
       "Cartografía con precisión catastral. Los límites municipales están generalizados, y un proyecto sobre el límite entre municipios requiere cartografía detallada y validación oficial.",
@@ -745,9 +745,9 @@ export const landing: LandingContent = {
     title: "Lo que suelen preguntarnos.",
     items: [
       {
-        question: "¿BOND reemplaza los estudios de detalle?",
+        question: "¿dot. reemplaza los estudios de detalle?",
         answer:
-          "No. BOND es prefactibilidad exploratoria: ayuda a decidir dónde vale la pena invertir en estudios. La debida diligencia detallada y los conceptos de las autoridades siguen siendo necesarios.",
+          "No. dot. es prefactibilidad exploratoria: ayuda a decidir dónde vale la pena invertir en estudios. La debida diligencia detallada y los conceptos de las autoridades siguen siendo necesarios.",
       },
       {
         question: "¿Qué archivos puedo cargar?",
@@ -757,7 +757,7 @@ export const landing: LandingContent = {
       {
         question: "¿De dónde vienen los datos?",
         answer:
-          "Límites municipales del DANE (MGN 2024), recurso solar y eólico de NASA POWER, la base de indicadores municipales de BOND y las capas que usted cargue. Cada resultado cita su fuente.",
+          "Límites municipales del DANE (MGN 2024), recurso solar y eólico de NASA POWER, la base de indicadores municipales de dot. y las capas que usted cargue. Cada resultado cita su fuente.",
       },
       {
         question: "¿Qué pasa si un municipio no tiene datos?",
@@ -767,7 +767,7 @@ export const landing: LandingContent = {
       {
         question: "¿Cómo se llega a Go, Conditional Go o No-Go?",
         answer:
-          "Es la metodología de BOND: un bloqueante crítico produce No-Go aunque el puntaje sea alto, y un Conditional Go exige verificaciones concretas con un responsable. Hoy la decisión la construye el equipo en la revisión metodológica, sobre la evidencia de la plataforma; su emisión automática está en desarrollo.",
+          "Es la metodología de dot.: un bloqueante crítico produce No-Go aunque el puntaje sea alto, y un Conditional Go exige verificaciones concretas con un responsable. Hoy la decisión la construye el equipo en la revisión metodológica, sobre la evidencia de la plataforma; su emisión automática está en desarrollo.",
       },
       {
         question: "¿Qué tan precisa es la cartografía?",
@@ -856,7 +856,7 @@ export const landing: LandingContent = {
       { label: "Tratamiento de datos personales", href: "#" }, // TODO(bond): URL de la política de datos
     ],
     disclaimer:
-      "BOND cita al DANE, NASA POWER, la ANLA, las CAR, la UPME y otras entidades como fuentes o marco normativo. Eso no implica afiliación ni respaldo.",
+      "dot. cita al DANE, NASA POWER, la ANLA, las CAR, la UPME y otras entidades como fuentes o marco normativo. Eso no implica afiliación ni respaldo.",
     rights: "Todos los derechos reservados.",
   },
 };

@@ -27,7 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const { meta } = landing;
 
   return {
-    title: { default: meta.title, template: "%s | BOND" },
+    title: { default: meta.title, template: "%s | dot." },
     description: meta.description,
     icons: {
       icon: "/favicon.svg",
@@ -36,10 +36,10 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       type: "website",
       locale: meta.locale,
-      siteName: "BOND",
+      siteName: "dot.",
       title: meta.ogTitle,
       description: meta.ogDescription,
-      images: [{ url: imageUrl, width: 1733, height: 910, alt: "BOND — Prefactibilidad territorial energética" }],
+      images: [{ url: imageUrl, width: 1733, height: 910, alt: "dot. — Prefactibilidad territorial energética" }],
     },
     twitter: {
       card: "summary_large_image",

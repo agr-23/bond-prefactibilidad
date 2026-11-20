@@ -85,7 +85,7 @@ test("la landing se renderiza en / con su metadata", async () => {
   assert.equal(status, 200);
   assert.match(type, /^text\/html\b/i);
   assert.match(html, /<html lang="es-CO"/);
-  assert.match(html, /<title>BOND \| Prefactibilidad territorial energética en Colombia<\/title>/);
+  assert.match(html, /<title>dot. \| Prefactibilidad territorial energética en Colombia<\/title>/);
   assert.match(html, /<meta name="description" content="[^"]{80,}"/);
   assert.match(html, /<meta property="og:locale" content="es_CO"/);
   assert.match(html, /<meta property="og:title" content="[^"]+"/);
@@ -131,9 +131,9 @@ test("el copy respeta las reglas de honestidad", async () => {
   assert.doesNotMatch(text, /KMZ/);
   assert.doesNotMatch(text, /garantiza|certificad|\+\s?\d+\s+(proyectos|clientes)|IA que decide/i);
   assert.doesNotMatch(text, /Transect/i);
-  // "precisión catastral" solo aparece para negarla, en "BOND no es".
+  // "precisión catastral" solo aparece para negarla, en "dot. no es".
   assert.equal(count(text, /precisión catastral/g), 1);
-  assert.match(text, /BOND no es[\s\S]*precisión catastral/);
+  assert.match(text, /dot. no es[\s\S]*precisión catastral/);
 });
 
 test("la landing incluye un formulario accesible con campo trampa", async () => {
@@ -176,7 +176,7 @@ test("/ no carga maplibre ni código de /plataforma, dentro del presupuesto", as
 test("/plataforma renderiza la herramienta con sus estilos de mapa", async () => {
   const { status, html } = await page("/plataforma");
   assert.equal(status, 200);
-  assert.match(html, /<title>Plataforma \| BOND<\/title>/);
+  assert.match(html, /<title>Plataforma \| dot.<\/title>/);
   assert.match(html, /class="studio"/);
   assert.match(html, /Explorador territorial/);
   assert.match(html, /MapLibreStyles-[^"]+\.css/);
