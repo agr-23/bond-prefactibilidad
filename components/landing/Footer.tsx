@@ -10,7 +10,7 @@ export default function Footer() {
     <footer className="lx-deep lx-footer bg-canvas text-ink">
       <div className="lx-container">
         <div className="lx-footer-top">
-          <p className="lx-brand">{nav.brand}</p>
+          <p className="lx-brand"><img className="lx-brand-logo" src="/brand/map-dot-blanco.svg" alt="map.dot" width={120} height={42} /></p>
           <p className="lx-footer-tagline">{footer.tagline}</p>
           <a className="lx-link" href={nav.platform.href}>
             {nav.platform.label}

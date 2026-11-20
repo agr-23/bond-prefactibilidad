@@ -386,6 +386,16 @@ body:has(.lx-root) {
   letter-spacing: 0.1em;
 }
 
+.lx-brand-logo {
+  display: block;
+  height: 24px;
+  width: auto;
+}
+
+.lx-footer-top .lx-brand-logo {
+  height: 30px;
+}
+
 .lx-nav-links {
   display: none;
   gap: 1.75rem;

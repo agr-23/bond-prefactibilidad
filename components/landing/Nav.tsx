@@ -40,7 +40,7 @@ export default function Nav({ nav }: { nav: LandingContent["nav"] }) {
       <nav aria-label={nav.ariaLabel}>
         <div className="lx-container lx-nav-bar">
           <a className="lx-brand" href="#inicio" aria-label={nav.homeLabel}>
-            {nav.brand}
+            <img className="lx-brand-logo" src="/brand/map-dot-blanco.svg" alt="map.dot" width={110} height={39} />
           </a>
           <ul className="lx-nav-links">
             {nav.links.map((link) => (
