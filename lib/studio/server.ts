@@ -30,21 +30,27 @@ export function checkOrigin(request:Request){
  if(origin&&origin!==new URL(request.url).origin)throw new HttpError(403,'Origen de solicitud no permitido.');
 }
 type RecordRow={id:string;owner:string;kind:string;object_key:string;revision:number;created_at:string;updated_at:string};
+// Base de solo lectura para el espacio demo: proyectos si el kind es 'project', vacio si no.
+const demoFallback=<T>(owner:string,kind:string):T[]=>(owner===DEMO_OWNER?(kind==='project'?seedProjects() as T[]:[]):[]);
 export async function listRecords<T>(owner:string,kind:string):Promise<T[]>{
- const isDemo=owner===DEMO_OWNER&&kind==='project';
+ const isDemo=owner===DEMO_OWNER;
  const {DB,BUCKET}=runtime();
- if(!DB||!BUCKET){if(isDemo)return seedProjects() as T[];throw new HttpError(503,'El almacenamiento no esta disponible.');}
- const r=await DB.prepare('SELECT * FROM studio_records WHERE owner=? AND kind=? ORDER BY updated_at DESC LIMIT 200').bind(owner,kind).all();
- const values:T[]=[];
- for(const row of r.results as RecordRow[]){const o=await BUCKET.get(row.object_key);if(o)values.push({...await o.json<Record<string,unknown>>(),revision:row.revision} as T);}
- if(isDemo){const have=new Set((values as {id:string}[]).map(v=>v.id));for(const s of seedProjects())if(!have.has(s.id))values.push(s as T);}
- return values;
+ if(!DB||!BUCKET){if(isDemo)return demoFallback<T>(owner,kind);throw new HttpError(503,'El almacenamiento no esta disponible.');}
+ try{
+  const r=await DB.prepare('SELECT * FROM studio_records WHERE owner=? AND kind=? ORDER BY updated_at DESC LIMIT 200').bind(owner,kind).all();
+  const values:T[]=[];
+  for(const row of r.results as RecordRow[]){const o=await BUCKET.get(row.object_key);if(o)values.push({...await o.json<Record<string,unknown>>(),revision:row.revision} as T);}
+  if(isDemo&&kind==='project'){const have=new Set((values as {id:string}[]).map(v=>v.id));for(const s of seedProjects())if(!have.has(s.id))values.push(s as T);}
+  return values;
+ }catch(e){if(isDemo)return demoFallback<T>(owner,kind);throw e;} // p.ej. tabla aun no migrada
 }
 export async function getRecord<T>(owner:string,id:string,kind:string):Promise<T>{
  const {DB,BUCKET}=runtime();
  const seedMatch=()=>{if(owner===DEMO_OWNER&&kind==='project'){const s=seedProjects().find(p=>p.id===id);if(s)return s as T;}return null;};
  if(!DB||!BUCKET){const s=seedMatch();if(s)return s;throw new HttpError(503,'El almacenamiento no esta disponible.');}
- const row=await DB.prepare('SELECT * FROM studio_records WHERE owner=? AND id=? AND kind=?').bind(owner,id,kind).first() as RecordRow|null;
+ let row:RecordRow|null;
+ try{row=await DB.prepare('SELECT * FROM studio_records WHERE owner=? AND id=? AND kind=?').bind(owner,id,kind).first() as RecordRow|null;}
+ catch(e){const s=seedMatch();if(s)return s;throw e;} // p.ej. tabla aun no migrada
  if(!row){const s=seedMatch();if(s)return s;throw new HttpError(404,'Registro no encontrado.');}
  const object=await BUCKET.get(row.object_key);if(!object)throw new HttpError(503,'No se pudo recuperar el archivo guardado.');
  return {...await object.json<Record<string,unknown>>(),revision:row.revision} as T;
