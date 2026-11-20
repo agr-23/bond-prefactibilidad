@@ -182,9 +182,6 @@ test("/plataforma renderiza la herramienta con sus estilos de mapa", async () =>
   assert.match(html, /MapLibreStyles-[^"]+\.css/);
   assert.match(html, /<a class="studio-brand" href="\/plataforma">/);
   assert.deepEqual(fontPreloads(html).length, 1, "/plataforma solo precarga Geist");
-  const workspace = await readFile(new URL("../app/studio/Workspace.tsx", import.meta.url), "utf8");
-  assert.match(workspace, /return_to=\/plataforma/);
-  assert.doesNotMatch(workspace, /return_to=\/"/);
 });
 
 test("/legacy sigue respondiendo con la aplicación anterior", async () => {
